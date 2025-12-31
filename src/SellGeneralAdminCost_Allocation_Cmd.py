@@ -1461,14 +1461,14 @@ def create_pj_summary(
         )
         write_tsv_rows(pszGrossProfitCumulativeRankPath, objGrossProfitCumulativeRankRows)
 
-    if objGrossProfitSingleSortedRows and objGrossProfitCumulativeSortedRows:
-        if len(objGrossProfitSingleSortedRows) != len(objGrossProfitCumulativeSortedRows):
-            print("Error: gross profit ranking step0003 row count mismatch.")
+    if objGrossProfitSingleRankRows and objGrossProfitCumulativeRankRows:
+        if len(objGrossProfitSingleRankRows) != len(objGrossProfitCumulativeRankRows):
+            print("Error: gross profit ranking step0004 row count mismatch.")
             return
 
         objGrossProfitStep0004Rows: List[List[str]] = []
-        for iRowIndex, objSingleRow in enumerate(objGrossProfitSingleSortedRows):
-            objCumulativeRow = objGrossProfitCumulativeSortedRows[iRowIndex]
+        for iRowIndex, objSingleRow in enumerate(objGrossProfitSingleRankRows):
+            objCumulativeRow = objGrossProfitCumulativeRankRows[iRowIndex]
             objOutputRow: List[str] = list(objSingleRow)
             objOutputRow.append("")
             objOutputRow.extend(objCumulativeRow)
