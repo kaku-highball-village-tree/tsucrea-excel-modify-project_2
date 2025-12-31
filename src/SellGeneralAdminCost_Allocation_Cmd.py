@@ -736,25 +736,57 @@ def read_tsv_rows(pszPath: str) -> List[List[str]]:
 
 
 def sum_tsv_rows(objBaseRows: List[List[str]], objAddRows: List[List[str]]) -> List[List[str]]:
-    iRowCount: int = max(len(objBaseRows), len(objAddRows))
-    for iRowIndex in range(iRowCount):
-        if iRowIndex >= len(objBaseRows):
-            objBaseRows.append([])
-        if iRowIndex >= len(objAddRows):
-            objAddRows.append([])
-        objBaseRow: List[str] = objBaseRows[iRowIndex]
-        objAddRow: List[str] = objAddRows[iRowIndex]
-        iColumnCount: int = max(len(objBaseRow), len(objAddRow))
+    if not objBaseRows:
+        return [list(objRow) for objRow in objAddRows]
+    if not objAddRows:
+        return objBaseRows
+
+    objBaseKeyIndices: Dict[str, List[int]] = {}
+    for iRowIndex, objRow in enumerate(objBaseRows):
+        pszKey: str = objRow[0] if objRow else ""
+        objBaseKeyIndices.setdefault(pszKey, []).append(iRowIndex)
+
+    objBaseKeyCursor: Dict[str, int] = {pszKey: 0 for pszKey in objBaseKeyIndices}
+
+    for iRowIndex, objAddRow in enumerate(objAddRows):
+        if iRowIndex == 0:
+            objBaseHeader: List[str] = objBaseRows[0]
+            iColumnCount: int = max(len(objBaseHeader), len(objAddRow))
+            if len(objBaseHeader) < iColumnCount:
+                objBaseHeader.extend([""] * (iColumnCount - len(objBaseHeader)))
+            if len(objAddRow) < iColumnCount:
+                objAddRow = objAddRow + [""] * (iColumnCount - len(objAddRow))
+            for iColumnIndex in range(iColumnCount):
+                if objBaseHeader[iColumnIndex].strip() == "" and objAddRow[iColumnIndex].strip() != "":
+                    objBaseHeader[iColumnIndex] = objAddRow[iColumnIndex]
+            objBaseRows[0] = objBaseHeader
+            continue
+
+        pszKey = objAddRow[0] if objAddRow else ""
+        objIndices: List[int] = objBaseKeyIndices.get(pszKey, [])
+        iCursor: int = objBaseKeyCursor.get(pszKey, 0)
+        if iCursor < len(objIndices):
+            iTargetIndex = objIndices[iCursor]
+            objBaseKeyCursor[pszKey] = iCursor + 1
+        else:
+            iTargetIndex = len(objBaseRows)
+            objBaseRows.append(list(objAddRow))
+            objBaseKeyIndices.setdefault(pszKey, []).append(iTargetIndex)
+            objBaseKeyCursor[pszKey] = objBaseKeyCursor.get(pszKey, 0) + 1
+            continue
+
+        objBaseRow = objBaseRows[iTargetIndex]
+        iColumnCount = max(len(objBaseRow), len(objAddRow))
         if len(objBaseRow) < iColumnCount:
             objBaseRow.extend([""] * (iColumnCount - len(objBaseRow)))
         if len(objAddRow) < iColumnCount:
-            objAddRow.extend([""] * (iColumnCount - len(objAddRow)))
+            objAddRow = objAddRow + [""] * (iColumnCount - len(objAddRow))
 
-        for iColumnIndex in range(iColumnCount):
-            pszBaseValue: str = objBaseRow[iColumnIndex]
-            pszAddValue: str = objAddRow[iColumnIndex]
-            fBase: Optional[float] = try_parse_float(pszBaseValue)
-            fAdd: Optional[float] = try_parse_float(pszAddValue)
+        for iColumnIndex in range(1, iColumnCount):
+            pszBaseValue = objBaseRow[iColumnIndex]
+            pszAddValue = objAddRow[iColumnIndex]
+            fBase = try_parse_float(pszBaseValue)
+            fAdd = try_parse_float(pszAddValue)
 
             if fBase is not None and fAdd is not None:
                 objBaseRow[iColumnIndex] = format_number(fBase + fAdd)
@@ -762,7 +794,9 @@ def sum_tsv_rows(objBaseRows: List[List[str]], objAddRows: List[List[str]]) -> L
                 objBaseRow[iColumnIndex] = format_number(fAdd)
             elif fBase is None and pszBaseValue.strip() == "" and pszAddValue.strip() != "":
                 objBaseRow[iColumnIndex] = pszAddValue
-        objBaseRows[iRowIndex] = objBaseRow
+
+        objBaseRows[iTargetIndex] = objBaseRow
+
     return objBaseRows
 
 
@@ -1204,20 +1238,179 @@ def create_pj_summary(
     write_tsv_rows(pszSingleStep0003Path, objSingleStep0003Rows)
     write_tsv_rows(pszCumulativeStep0003Path, objCumulativeStep0003Rows)
 
+    if len(objSingleStep0003Rows) != len(objCumulativeStep0003Rows):
+        print("Error: step0003 row count mismatch between single and cumulative.")
+        return
+
+    for iRowIndex, objRow in enumerate(objSingleStep0003Rows):
+        pszSingleKey: str = objRow[0] if objRow else ""
+        objCumulativeRow: List[str] = objCumulativeStep0003Rows[iRowIndex]
+        pszCumulativeKey: str = objCumulativeRow[0] if objCumulativeRow else ""
+        if pszSingleKey != pszCumulativeKey:
+            print(
+                "Error: step0003 first-column mismatch at row "
+                + str(iRowIndex)
+                + ". single="
+                + pszSingleKey
+                + " cumulative="
+                + pszCumulativeKey
+            )
+            return
+
+    objStep0004Rows: List[List[str]] = []
+    for iRowIndex, objRow in enumerate(objSingleStep0003Rows):
+        objCumulativeRow = objCumulativeStep0003Rows[iRowIndex]
+        if iRowIndex == 0:
+            objHeader: List[str] = [objRow[0] if objRow else ""]
+            iMaxColumns: int = max(len(objRow), len(objCumulativeRow))
+            for iColumnIndex in range(1, iMaxColumns):
+                pszSingleHeader: str = objRow[iColumnIndex] if iColumnIndex < len(objRow) else ""
+                pszCumulativeHeader: str = (
+                    objCumulativeRow[iColumnIndex] if iColumnIndex < len(objCumulativeRow) else ""
+                )
+                objHeader.append(pszSingleHeader)
+                objHeader.append(pszCumulativeHeader)
+            objStep0004Rows.append(objHeader)
+            continue
+
+        objOutputRow: List[str] = [objRow[0] if objRow else ""]
+        iMaxColumns = max(len(objRow), len(objCumulativeRow))
+        for iColumnIndex in range(1, iMaxColumns):
+            objOutputRow.append(objRow[iColumnIndex] if iColumnIndex < len(objRow) else "")
+            objOutputRow.append(
+                objCumulativeRow[iColumnIndex] if iColumnIndex < len(objCumulativeRow) else ""
+            )
+        objStep0004Rows.append(objOutputRow)
+
+    pszStep0004Path: str = os.path.join(
+        pszDirectory,
+        "0001_PJサマリ_step0004_単月・累計_損益計算書.tsv",
+    )
+    write_tsv_rows(pszStep0004Path, objStep0004Rows)
+
+    if not objStep0004Rows:
+        return
+
+    iStep0004ColumnCount: int = max(len(objRow) for objRow in objStep0004Rows)
+    objStep0005Rows: List[List[str]] = []
+    objHeaderRow: List[str] = ["単／累"]
+    for iColumnIndex in range(1, iStep0004ColumnCount):
+        if iColumnIndex % 2 == 1:
+            objHeaderRow.append("単月")
+        else:
+            objHeaderRow.append("累計")
+    objStep0005Rows.append(objHeaderRow)
+    objStep0005Rows.extend(objStep0004Rows)
+
+    pszStep0005Path: str = os.path.join(
+        pszDirectory,
+        "0001_PJサマリ_step0005_単月・累計_損益計算書.tsv",
+    )
+    write_tsv_rows(pszStep0005Path, objStep0005Rows)
+
+    objGrossProfitColumns: List[str] = ["科目名", "売上総利益", "純売上高"]
+    objGrossProfitSingleRows: List[List[str]] = filter_rows_by_columns(
+        objSingleOutputRows,
+        objGrossProfitColumns,
+    )
+    objGrossProfitCumulativeRows: List[List[str]] = filter_rows_by_columns(
+        objCumulativeOutputRows,
+        objGrossProfitColumns,
+    )
+    pszGrossProfitSinglePath: str = os.path.join(
+        pszDirectory,
+        "0002_PJサマリ_step0001_単月_粗利金額ランキング.tsv",
+    )
+    pszGrossProfitCumulativePath: str = os.path.join(
+        pszDirectory,
+        "0002_PJサマリ_step0001_累計_粗利金額ランキング.tsv",
+    )
+    write_tsv_rows(pszGrossProfitSinglePath, objGrossProfitSingleRows)
+    write_tsv_rows(pszGrossProfitCumulativePath, objGrossProfitCumulativeRows)
+
+    # 単月_粗利金額ランキング
+    objGrossProfitSingleSortedRows: List[List[str]] = []
+    objGrossProfitCumulativeSortedRows: List[List[str]] = []
+
+    if objGrossProfitSingleRows:
+        objSingleHeader: List[str] = objGrossProfitSingleRows[0]
+        objSingleBody: List[List[str]] = objGrossProfitSingleRows[1:]
+        objSingleBody.sort(
+            key=lambda objRow: try_parse_float(objRow[1] if len(objRow) > 1 else "") or 0.0,
+            reverse=True,
+        )
+        objGrossProfitSingleSortedRows = [objSingleHeader] + objSingleBody
+        pszGrossProfitSingleSortedPath: str = os.path.join(
+            pszDirectory,
+            "0002_PJサマリ_step0002_単月_粗利金額ランキング.tsv",
+        )
+        write_tsv_rows(pszGrossProfitSingleSortedPath, objGrossProfitSingleSortedRows)
+
+    # 累計_粗利金額ランキング
+    if objGrossProfitCumulativeRows:
+        objCumulativeHeader: List[str] = objGrossProfitCumulativeRows[0]
+        objCumulativeBody: List[List[str]] = objGrossProfitCumulativeRows[1:]
+        objCumulativeBody.sort(
+            key=lambda objRow: try_parse_float(objRow[1] if len(objRow) > 1 else "") or 0.0,
+            reverse=True,
+        )
+        objGrossProfitCumulativeSortedRows = [objCumulativeHeader] + objCumulativeBody
+        pszGrossProfitCumulativeSortedPath: str = os.path.join(
+            pszDirectory,
+            "0002_PJサマリ_step0002_累計_粗利金額ランキング.tsv",
+        )
+        write_tsv_rows(
+            pszGrossProfitCumulativeSortedPath,
+            objGrossProfitCumulativeSortedRows,
+        )
+
+    if objGrossProfitSingleSortedRows and objGrossProfitCumulativeSortedRows:
+        if len(objGrossProfitSingleSortedRows) != len(objGrossProfitCumulativeSortedRows):
+            print("Error: gross profit ranking row count mismatch.")
+            return
+
+        objGrossProfitCombinedRows = [list(objRow) for objRow in objGrossProfitSingleSortedRows]
+        for objRow in objGrossProfitCombinedRows:
+            objRow.append("")
+
+        for iRowIndex, objCumulativeRow in enumerate(objGrossProfitCumulativeSortedRows):
+            if len(objGrossProfitCombinedRows[iRowIndex]) < 3:
+                objGrossProfitCombinedRows[iRowIndex].extend(
+                    [""] * (3 - len(objGrossProfitCombinedRows[iRowIndex]))
+                )
+            pszCumulativeProject: str = objCumulativeRow[0] if objCumulativeRow else ""
+            pszCumulativeValue: str = objCumulativeRow[1] if len(objCumulativeRow) > 1 else ""
+            objGrossProfitCombinedRows[iRowIndex].append(pszCumulativeProject)
+            objGrossProfitCombinedRows[iRowIndex].append(pszCumulativeValue)
+
+        pszGrossProfitCombinedPath: str = os.path.join(
+            pszDirectory,
+            "0002_PJサマリ_step0003_単月・累計_粗利金額ランキング.tsv",
+        )
+        write_tsv_rows(pszGrossProfitCombinedPath, objGrossProfitCombinedRows)
+
 
 def create_cumulative_report(
     pszDirectory: str,
     pszPrefix: str,
     objRange: Tuple[Tuple[int, int], Tuple[int, int]],
+    pszInputPrefix: Optional[str] = None,
 ) -> None:
     objStart, objEnd = objRange
     objMonths = build_month_sequence(objStart, objEnd)
     if not objMonths:
         return
 
+    if pszInputPrefix is None:
+        pszInputPrefix = pszPrefix
+
     objTotalRows: Optional[List[List[str]]] = None
     for objMonth in objMonths:
-        objRows: Optional[List[List[str]]] = read_report_rows(pszDirectory, pszPrefix, objMonth)
+        objRows: Optional[List[List[str]]] = read_report_rows(
+            pszDirectory,
+            pszInputPrefix,
+            objMonth,
+        )
         if objRows is None:
             return
         if objTotalRows is None:
@@ -1264,7 +1457,12 @@ def create_cumulative_reports(pszPlPath: str) -> None:
     objAllRanges = objFiscalARanges + objFiscalBRanges
 
     for objRangeItem in objAllRanges:
-        create_cumulative_report(pszDirectory, "損益計算書", objRangeItem)
+        create_cumulative_report(
+            pszDirectory,
+            "損益計算書",
+            objRangeItem,
+            pszInputPrefix="損益計算書_販管費配賦",
+        )
         create_cumulative_report(pszDirectory, "製造原価報告書", objRangeItem)
     objPjSummaryRange = build_pj_summary_range(objRange)
     create_pj_summary(pszPlPath, objPjSummaryRange)
