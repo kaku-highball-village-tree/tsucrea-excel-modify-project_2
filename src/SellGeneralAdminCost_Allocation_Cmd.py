@@ -1197,6 +1197,31 @@ def create_pj_summary(
     write_tsv_rows(pszSingleOutputPath, objSingleOutputRows)
     write_tsv_rows(pszCumulativeOutputPath, objCumulativeOutputRows)
 
+    pszSingleCostReportPath: str = os.path.join(
+        pszDirectory,
+        f"製造原価報告書_{iEndYear}年{pszEndMonth}月_A∪B_プロジェクト名_C∪D.tsv",
+    )
+    pszCumulativeCostReportPath: str = build_cumulative_file_path(
+        pszDirectory,
+        "製造原価報告書",
+        objStart,
+        objEnd,
+    )
+    if os.path.isfile(pszSingleCostReportPath):
+        objCostReportSingleRows: List[List[str]] = read_tsv_rows(pszSingleCostReportPath)
+        pszCostReportSingleOutputPath: str = os.path.join(
+            pszDirectory,
+            "0001_PJサマリ_step0001_単月_製造原価報告書.tsv",
+        )
+        write_tsv_rows(pszCostReportSingleOutputPath, objCostReportSingleRows)
+    if os.path.isfile(pszCumulativeCostReportPath):
+        objCostReportCumulativeRows: List[List[str]] = read_tsv_rows(pszCumulativeCostReportPath)
+        pszCostReportCumulativeOutputPath: str = os.path.join(
+            pszDirectory,
+            "0001_PJサマリ_step0001_累計_製造原価報告書.tsv",
+        )
+        write_tsv_rows(pszCostReportCumulativeOutputPath, objCostReportCumulativeRows)
+
     objTargetColumns: List[str] = [
         "科目名",
         "純売上高",
@@ -1501,6 +1526,35 @@ def create_pj_summary(
             "0002_PJサマリ_step0005_単月・累計_粗利金額ランキング.tsv",
         )
         write_tsv_rows(pszGrossProfitStep0005Path, objGrossProfitStep0005Rows)
+
+        if objGrossProfitStep0005Rows:
+            objGrossProfitStep0006Rows: List[List[str]] = []
+            objSalesIndices: List[int] = []
+            objHeaderRow: List[str] = objGrossProfitStep0005Rows[0]
+            for iColumnIndex, pszColumnName in enumerate(objHeaderRow):
+                if pszColumnName == "純売上高":
+                    objSalesIndices.append(iColumnIndex)
+
+            objSalesIndexSet = set(objSalesIndices)
+            for objRow in objGrossProfitStep0005Rows:
+                objFilteredRow: List[str] = []
+                for iColumnIndex, pszValue in enumerate(objRow):
+                    if iColumnIndex in objSalesIndexSet:
+                        continue
+                    objFilteredRow.append(pszValue)
+                objGrossProfitStep0006Rows.append(objFilteredRow)
+
+            pszGrossProfitStep0006Path: str = os.path.join(
+                pszDirectory,
+                "0002_PJサマリ_step0006_単月・累計_粗利金額ランキング.tsv",
+            )
+            write_tsv_rows(pszGrossProfitStep0006Path, objGrossProfitStep0006Rows)
+
+            pszGrossProfitFinalPath: str = os.path.join(
+                pszDirectory,
+                "0002_PJサマリ_単月・累計_粗利金額ランキング.tsv",
+            )
+            write_tsv_rows(pszGrossProfitFinalPath, objGrossProfitStep0006Rows)
 
 
 def create_cumulative_report(
