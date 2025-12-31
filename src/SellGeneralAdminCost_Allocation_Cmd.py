@@ -1389,6 +1389,78 @@ def create_pj_summary(
         )
         write_tsv_rows(pszGrossProfitCombinedPath, objGrossProfitCombinedRows)
 
+    if objGrossProfitSingleSortedRows:
+        objGrossProfitSingleRankRows: List[List[str]] = []
+        for iRowIndex, objRow in enumerate(objGrossProfitSingleSortedRows):
+            if iRowIndex == 0:
+                objGrossProfitSingleRankRows.append(
+                    ["0", "プロジェクト名", "売上総利益", "純売上高", "利益率"]
+                )
+                continue
+            pszGrossProfit: str = objRow[1] if len(objRow) > 1 else ""
+            pszSales: str = objRow[2] if len(objRow) > 2 else ""
+            fGrossProfit: float = parse_number(pszGrossProfit)
+            fSales: float = parse_number(pszSales)
+            if abs(fSales) < 0.0000001:
+                if fGrossProfit > 0:
+                    pszMargin = "'＋∞"
+                elif fGrossProfit < 0:
+                    pszMargin = "'－∞"
+                else:
+                    pszMargin = "0"
+            else:
+                pszMargin = format_number(fGrossProfit / fSales)
+            objGrossProfitSingleRankRows.append(
+                [
+                    str(iRowIndex),
+                    objRow[0] if objRow else "",
+                    pszGrossProfit,
+                    pszSales,
+                    pszMargin,
+                ]
+            )
+        pszGrossProfitSingleRankPath: str = os.path.join(
+            pszDirectory,
+            "0002_PJサマリ_step0003_単月_粗利金額ランキング.tsv",
+        )
+        write_tsv_rows(pszGrossProfitSingleRankPath, objGrossProfitSingleRankRows)
+
+    if objGrossProfitCumulativeSortedRows:
+        objGrossProfitCumulativeRankRows: List[List[str]] = []
+        for iRowIndex, objRow in enumerate(objGrossProfitCumulativeSortedRows):
+            if iRowIndex == 0:
+                objGrossProfitCumulativeRankRows.append(
+                    ["0", "プロジェクト名", "売上総利益", "純売上高", "利益率"]
+                )
+                continue
+            pszGrossProfit = objRow[1] if len(objRow) > 1 else ""
+            pszSales = objRow[2] if len(objRow) > 2 else ""
+            fGrossProfit = parse_number(pszGrossProfit)
+            fSales = parse_number(pszSales)
+            if abs(fSales) < 0.0000001:
+                if fGrossProfit > 0:
+                    pszMargin = "'＋∞"
+                elif fGrossProfit < 0:
+                    pszMargin = "'－∞"
+                else:
+                    pszMargin = "0"
+            else:
+                pszMargin = format_number(fGrossProfit / fSales)
+            objGrossProfitCumulativeRankRows.append(
+                [
+                    str(iRowIndex),
+                    objRow[0] if objRow else "",
+                    pszGrossProfit,
+                    pszSales,
+                    pszMargin,
+                ]
+            )
+        pszGrossProfitCumulativeRankPath: str = os.path.join(
+            pszDirectory,
+            "0002_PJサマリ_step0003_累計_粗利金額ランキング.tsv",
+        )
+        write_tsv_rows(pszGrossProfitCumulativeRankPath, objGrossProfitCumulativeRankRows)
+
 
 def create_cumulative_report(
     pszDirectory: str,
