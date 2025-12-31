@@ -1308,7 +1308,7 @@ def create_pj_summary(
     )
     write_tsv_rows(pszStep0005Path, objStep0005Rows)
 
-    objGrossProfitColumns: List[str] = ["科目名", "売上総利益"]
+    objGrossProfitColumns: List[str] = ["科目名", "売上総利益", "純売上高"]
     objGrossProfitSingleRows: List[List[str]] = filter_rows_by_columns(
         objSingleOutputRows,
         objGrossProfitColumns,
