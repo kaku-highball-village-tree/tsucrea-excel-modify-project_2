@@ -736,25 +736,57 @@ def read_tsv_rows(pszPath: str) -> List[List[str]]:
 
 
 def sum_tsv_rows(objBaseRows: List[List[str]], objAddRows: List[List[str]]) -> List[List[str]]:
-    iRowCount: int = max(len(objBaseRows), len(objAddRows))
-    for iRowIndex in range(iRowCount):
-        if iRowIndex >= len(objBaseRows):
-            objBaseRows.append([])
-        if iRowIndex >= len(objAddRows):
-            objAddRows.append([])
-        objBaseRow: List[str] = objBaseRows[iRowIndex]
-        objAddRow: List[str] = objAddRows[iRowIndex]
-        iColumnCount: int = max(len(objBaseRow), len(objAddRow))
+    if not objBaseRows:
+        return [list(objRow) for objRow in objAddRows]
+    if not objAddRows:
+        return objBaseRows
+
+    objBaseKeyIndices: Dict[str, List[int]] = {}
+    for iRowIndex, objRow in enumerate(objBaseRows):
+        pszKey: str = objRow[0] if objRow else ""
+        objBaseKeyIndices.setdefault(pszKey, []).append(iRowIndex)
+
+    objBaseKeyCursor: Dict[str, int] = {pszKey: 0 for pszKey in objBaseKeyIndices}
+
+    for iRowIndex, objAddRow in enumerate(objAddRows):
+        if iRowIndex == 0:
+            objBaseHeader: List[str] = objBaseRows[0]
+            iColumnCount: int = max(len(objBaseHeader), len(objAddRow))
+            if len(objBaseHeader) < iColumnCount:
+                objBaseHeader.extend([""] * (iColumnCount - len(objBaseHeader)))
+            if len(objAddRow) < iColumnCount:
+                objAddRow = objAddRow + [""] * (iColumnCount - len(objAddRow))
+            for iColumnIndex in range(iColumnCount):
+                if objBaseHeader[iColumnIndex].strip() == "" and objAddRow[iColumnIndex].strip() != "":
+                    objBaseHeader[iColumnIndex] = objAddRow[iColumnIndex]
+            objBaseRows[0] = objBaseHeader
+            continue
+
+        pszKey = objAddRow[0] if objAddRow else ""
+        objIndices: List[int] = objBaseKeyIndices.get(pszKey, [])
+        iCursor: int = objBaseKeyCursor.get(pszKey, 0)
+        if iCursor < len(objIndices):
+            iTargetIndex = objIndices[iCursor]
+            objBaseKeyCursor[pszKey] = iCursor + 1
+        else:
+            iTargetIndex = len(objBaseRows)
+            objBaseRows.append(list(objAddRow))
+            objBaseKeyIndices.setdefault(pszKey, []).append(iTargetIndex)
+            objBaseKeyCursor[pszKey] = objBaseKeyCursor.get(pszKey, 0) + 1
+            continue
+
+        objBaseRow = objBaseRows[iTargetIndex]
+        iColumnCount = max(len(objBaseRow), len(objAddRow))
         if len(objBaseRow) < iColumnCount:
             objBaseRow.extend([""] * (iColumnCount - len(objBaseRow)))
         if len(objAddRow) < iColumnCount:
-            objAddRow.extend([""] * (iColumnCount - len(objAddRow)))
+            objAddRow = objAddRow + [""] * (iColumnCount - len(objAddRow))
 
-        for iColumnIndex in range(iColumnCount):
-            pszBaseValue: str = objBaseRow[iColumnIndex]
-            pszAddValue: str = objAddRow[iColumnIndex]
-            fBase: Optional[float] = try_parse_float(pszBaseValue)
-            fAdd: Optional[float] = try_parse_float(pszAddValue)
+        for iColumnIndex in range(1, iColumnCount):
+            pszBaseValue = objBaseRow[iColumnIndex]
+            pszAddValue = objAddRow[iColumnIndex]
+            fBase = try_parse_float(pszBaseValue)
+            fAdd = try_parse_float(pszAddValue)
 
             if fBase is not None and fAdd is not None:
                 objBaseRow[iColumnIndex] = format_number(fBase + fAdd)
@@ -762,7 +794,9 @@ def sum_tsv_rows(objBaseRows: List[List[str]], objAddRows: List[List[str]]) -> L
                 objBaseRow[iColumnIndex] = format_number(fAdd)
             elif fBase is None and pszBaseValue.strip() == "" and pszAddValue.strip() != "":
                 objBaseRow[iColumnIndex] = pszAddValue
-        objBaseRows[iRowIndex] = objBaseRow
+
+        objBaseRows[iTargetIndex] = objBaseRow
+
     return objBaseRows
 
 
@@ -1209,15 +1243,23 @@ def create_cumulative_report(
     pszDirectory: str,
     pszPrefix: str,
     objRange: Tuple[Tuple[int, int], Tuple[int, int]],
+    pszInputPrefix: Optional[str] = None,
 ) -> None:
     objStart, objEnd = objRange
     objMonths = build_month_sequence(objStart, objEnd)
     if not objMonths:
         return
 
+    if pszInputPrefix is None:
+        pszInputPrefix = pszPrefix
+
     objTotalRows: Optional[List[List[str]]] = None
     for objMonth in objMonths:
-        objRows: Optional[List[List[str]]] = read_report_rows(pszDirectory, pszPrefix, objMonth)
+        objRows: Optional[List[List[str]]] = read_report_rows(
+            pszDirectory,
+            pszInputPrefix,
+            objMonth,
+        )
         if objRows is None:
             return
         if objTotalRows is None:
@@ -1264,7 +1306,12 @@ def create_cumulative_reports(pszPlPath: str) -> None:
     objAllRanges = objFiscalARanges + objFiscalBRanges
 
     for objRangeItem in objAllRanges:
-        create_cumulative_report(pszDirectory, "損益計算書", objRangeItem)
+        create_cumulative_report(
+            pszDirectory,
+            "損益計算書",
+            objRangeItem,
+            pszInputPrefix="損益計算書_販管費配賦",
+        )
         create_cumulative_report(pszDirectory, "製造原価報告書", objRangeItem)
     objPjSummaryRange = build_pj_summary_range(objRange)
     create_pj_summary(pszPlPath, objPjSummaryRange)
