@@ -1530,18 +1530,27 @@ def create_pj_summary(
         if objGrossProfitStep0005Rows:
             objGrossProfitStep0006Rows: List[List[str]] = []
             objSalesIndices: List[int] = []
+            objNumberColumnIndices: List[int] = []
             objHeaderRow: List[str] = objGrossProfitStep0005Rows[0]
             for iColumnIndex, pszColumnName in enumerate(objHeaderRow):
                 if pszColumnName == "純売上高":
                     objSalesIndices.append(iColumnIndex)
 
+            for iColumnIndex, pszColumnName in enumerate(objHeaderRow):
+                if pszColumnName == "0":
+                    objNumberColumnIndices.append(iColumnIndex)
+
             objSalesIndexSet = set(objSalesIndices)
+            objNumberIndexSet = set(objNumberColumnIndices)
             for objRow in objGrossProfitStep0005Rows:
                 objFilteredRow: List[str] = []
                 for iColumnIndex, pszValue in enumerate(objRow):
                     if iColumnIndex in objSalesIndexSet:
                         continue
-                    objFilteredRow.append(pszValue)
+                    if iColumnIndex in objNumberIndexSet and pszValue == "0":
+                        objFilteredRow.append("")
+                    else:
+                        objFilteredRow.append(pszValue)
                 objGrossProfitStep0006Rows.append(objFilteredRow)
 
             pszGrossProfitStep0006Path: str = os.path.join(
