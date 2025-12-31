@@ -1369,15 +1369,19 @@ def create_pj_summary(
             print("Error: gross profit ranking row count mismatch.")
             return
 
-        objGrossProfitCombinedRows: List[List[str]] = []
-        for iRowIndex, objSingleRow in enumerate(objGrossProfitSingleSortedRows):
-            objCumulativeRow = objGrossProfitCumulativeSortedRows[iRowIndex]
+        objGrossProfitCombinedRows = [list(objRow) for objRow in objGrossProfitSingleSortedRows]
+        for objRow in objGrossProfitCombinedRows:
+            objRow.append("")
+
+        for iRowIndex, objCumulativeRow in enumerate(objGrossProfitCumulativeSortedRows):
+            if len(objGrossProfitCombinedRows[iRowIndex]) < 3:
+                objGrossProfitCombinedRows[iRowIndex].extend(
+                    [""] * (3 - len(objGrossProfitCombinedRows[iRowIndex]))
+                )
+            pszCumulativeProject: str = objCumulativeRow[0] if objCumulativeRow else ""
             pszCumulativeValue: str = objCumulativeRow[1] if len(objCumulativeRow) > 1 else ""
-            objOutputRow: List[str] = list(objSingleRow)
-            if len(objOutputRow) < 2:
-                objOutputRow.extend([""] * (2 - len(objOutputRow)))
-            objOutputRow.insert(2, pszCumulativeValue)
-            objGrossProfitCombinedRows.append(objOutputRow)
+            objGrossProfitCombinedRows[iRowIndex].append(pszCumulativeProject)
+            objGrossProfitCombinedRows[iRowIndex].append(pszCumulativeValue)
 
         pszGrossProfitCombinedPath: str = os.path.join(
             pszDirectory,
