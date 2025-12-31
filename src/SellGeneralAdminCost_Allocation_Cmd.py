@@ -1536,9 +1536,9 @@ def create_pj_summary(
                 if pszColumnName == "純売上高":
                     objSalesIndices.append(iColumnIndex)
 
-            for iColumnIndex, pszColumnName in enumerate(objHeaderRow):
-                if pszColumnName == "0":
-                    objNumberColumnIndices.append(iColumnIndex)
+            if objGrossProfitSingleRankRows:
+                iSingleColumnCount = len(objGrossProfitSingleRankRows[0])
+                objNumberColumnIndices = [0, iSingleColumnCount + 1]
 
             objSalesIndexSet = set(objSalesIndices)
             objNumberIndexSet = set(objNumberColumnIndices)
