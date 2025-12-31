@@ -1288,6 +1288,26 @@ def create_pj_summary(
     )
     write_tsv_rows(pszStep0004Path, objStep0004Rows)
 
+    if not objStep0004Rows:
+        return
+
+    iStep0004ColumnCount: int = max(len(objRow) for objRow in objStep0004Rows)
+    objStep0005Rows: List[List[str]] = []
+    objHeaderRow: List[str] = ["単／累"]
+    for iColumnIndex in range(1, iStep0004ColumnCount):
+        if iColumnIndex % 2 == 1:
+            objHeaderRow.append("単月")
+        else:
+            objHeaderRow.append("累計")
+    objStep0005Rows.append(objHeaderRow)
+    objStep0005Rows.extend(objStep0004Rows)
+
+    pszStep0005Path: str = os.path.join(
+        pszDirectory,
+        "0001_PJサマリ_step0005_単月・累計_損益計算書.tsv",
+    )
+    write_tsv_rows(pszStep0005Path, objStep0005Rows)
+
 
 def create_cumulative_report(
     pszDirectory: str,
