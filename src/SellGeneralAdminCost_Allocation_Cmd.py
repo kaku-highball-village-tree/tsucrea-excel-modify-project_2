@@ -1238,6 +1238,56 @@ def create_pj_summary(
     write_tsv_rows(pszSingleStep0003Path, objSingleStep0003Rows)
     write_tsv_rows(pszCumulativeStep0003Path, objCumulativeStep0003Rows)
 
+    if len(objSingleStep0003Rows) != len(objCumulativeStep0003Rows):
+        print("Error: step0003 row count mismatch between single and cumulative.")
+        return
+
+    for iRowIndex, objRow in enumerate(objSingleStep0003Rows):
+        pszSingleKey: str = objRow[0] if objRow else ""
+        objCumulativeRow: List[str] = objCumulativeStep0003Rows[iRowIndex]
+        pszCumulativeKey: str = objCumulativeRow[0] if objCumulativeRow else ""
+        if pszSingleKey != pszCumulativeKey:
+            print(
+                "Error: step0003 first-column mismatch at row "
+                + str(iRowIndex)
+                + ". single="
+                + pszSingleKey
+                + " cumulative="
+                + pszCumulativeKey
+            )
+            return
+
+    objStep0004Rows: List[List[str]] = []
+    for iRowIndex, objRow in enumerate(objSingleStep0003Rows):
+        objCumulativeRow = objCumulativeStep0003Rows[iRowIndex]
+        if iRowIndex == 0:
+            objHeader: List[str] = [objRow[0] if objRow else ""]
+            iMaxColumns: int = max(len(objRow), len(objCumulativeRow))
+            for iColumnIndex in range(1, iMaxColumns):
+                pszSingleHeader: str = objRow[iColumnIndex] if iColumnIndex < len(objRow) else ""
+                pszCumulativeHeader: str = (
+                    objCumulativeRow[iColumnIndex] if iColumnIndex < len(objCumulativeRow) else ""
+                )
+                objHeader.append(pszSingleHeader)
+                objHeader.append(pszCumulativeHeader)
+            objStep0004Rows.append(objHeader)
+            continue
+
+        objOutputRow: List[str] = [objRow[0] if objRow else ""]
+        iMaxColumns = max(len(objRow), len(objCumulativeRow))
+        for iColumnIndex in range(1, iMaxColumns):
+            objOutputRow.append(objRow[iColumnIndex] if iColumnIndex < len(objRow) else "")
+            objOutputRow.append(
+                objCumulativeRow[iColumnIndex] if iColumnIndex < len(objCumulativeRow) else ""
+            )
+        objStep0004Rows.append(objOutputRow)
+
+    pszStep0004Path: str = os.path.join(
+        pszDirectory,
+        "0001_PJサマリ_step0004_単月・累計_損益計算書.tsv",
+    )
+    write_tsv_rows(pszStep0004Path, objStep0004Rows)
+
 
 def create_cumulative_report(
     pszDirectory: str,
