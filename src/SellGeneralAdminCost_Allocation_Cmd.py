@@ -1461,6 +1461,25 @@ def create_pj_summary(
         )
         write_tsv_rows(pszGrossProfitCumulativeRankPath, objGrossProfitCumulativeRankRows)
 
+    if objGrossProfitSingleSortedRows and objGrossProfitCumulativeSortedRows:
+        if len(objGrossProfitSingleSortedRows) != len(objGrossProfitCumulativeSortedRows):
+            print("Error: gross profit ranking step0003 row count mismatch.")
+            return
+
+        objGrossProfitStep0004Rows: List[List[str]] = []
+        for iRowIndex, objSingleRow in enumerate(objGrossProfitSingleSortedRows):
+            objCumulativeRow = objGrossProfitCumulativeSortedRows[iRowIndex]
+            objOutputRow: List[str] = list(objSingleRow)
+            objOutputRow.append("")
+            objOutputRow.extend(objCumulativeRow)
+            objGrossProfitStep0004Rows.append(objOutputRow)
+
+        pszGrossProfitStep0004Path: str = os.path.join(
+            pszDirectory,
+            "0002_PJサマリ_step0004_単月・累計_粗利金額ランキング.tsv",
+        )
+        write_tsv_rows(pszGrossProfitStep0004Path, objGrossProfitStep0004Rows)
+
 
 def create_cumulative_report(
     pszDirectory: str,
