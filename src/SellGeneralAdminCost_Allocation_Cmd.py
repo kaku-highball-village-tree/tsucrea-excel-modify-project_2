@@ -1328,6 +1328,7 @@ def create_pj_summary(
     write_tsv_rows(pszGrossProfitSinglePath, objGrossProfitSingleRows)
     write_tsv_rows(pszGrossProfitCumulativePath, objGrossProfitCumulativeRows)
 
+    # 単月_粗利金額ランキング
     if objGrossProfitSingleRows:
         objSingleHeader: List[str] = objGrossProfitSingleRows[0]
         objSingleBody: List[List[str]] = objGrossProfitSingleRows[1:]
@@ -1341,6 +1342,7 @@ def create_pj_summary(
         )
         write_tsv_rows(pszGrossProfitSingleSortedPath, [objSingleHeader] + objSingleBody)
 
+    # 累計_粗利金額ランキング
     if objGrossProfitCumulativeRows:
         objCumulativeHeader: List[str] = objGrossProfitCumulativeRows[0]
         objCumulativeBody: List[List[str]] = objGrossProfitCumulativeRows[1:]
