@@ -1480,6 +1480,28 @@ def create_pj_summary(
         )
         write_tsv_rows(pszGrossProfitStep0004Path, objGrossProfitStep0004Rows)
 
+        objGrossProfitStep0005Rows: List[List[str]] = [
+            [
+                "",
+                "粗利金額ランキング",
+                "粗利金額",
+                "",
+                "単月",
+                "",
+                "",
+                "粗利金額ランキング",
+                "粗利金額",
+                "",
+                "累計",
+            ]
+        ]
+        objGrossProfitStep0005Rows.extend(objGrossProfitStep0004Rows)
+        pszGrossProfitStep0005Path: str = os.path.join(
+            pszDirectory,
+            "0002_PJサマリ_step0005_単月・累計_粗利金額ランキング.tsv",
+        )
+        write_tsv_rows(pszGrossProfitStep0005Path, objGrossProfitStep0005Rows)
+
 
 def create_cumulative_report(
     pszDirectory: str,
