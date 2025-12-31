@@ -1328,6 +1328,37 @@ def create_pj_summary(
     write_tsv_rows(pszGrossProfitSinglePath, objGrossProfitSingleRows)
     write_tsv_rows(pszGrossProfitCumulativePath, objGrossProfitCumulativeRows)
 
+    # 単月_粗利金額ランキング
+    if objGrossProfitSingleRows:
+        objSingleHeader: List[str] = objGrossProfitSingleRows[0]
+        objSingleBody: List[List[str]] = objGrossProfitSingleRows[1:]
+        objSingleBody.sort(
+            key=lambda objRow: try_parse_float(objRow[1] if len(objRow) > 1 else "") or 0.0,
+            reverse=True,
+        )
+        pszGrossProfitSingleSortedPath: str = os.path.join(
+            pszDirectory,
+            "0002_PJサマリ_step0002_単月_粗利金額ランキング.tsv",
+        )
+        write_tsv_rows(pszGrossProfitSingleSortedPath, [objSingleHeader] + objSingleBody)
+
+    # 累計_粗利金額ランキング
+    if objGrossProfitCumulativeRows:
+        objCumulativeHeader: List[str] = objGrossProfitCumulativeRows[0]
+        objCumulativeBody: List[List[str]] = objGrossProfitCumulativeRows[1:]
+        objCumulativeBody.sort(
+            key=lambda objRow: try_parse_float(objRow[1] if len(objRow) > 1 else "") or 0.0,
+            reverse=True,
+        )
+        pszGrossProfitCumulativeSortedPath: str = os.path.join(
+            pszDirectory,
+            "0002_PJサマリ_step0002_累計_粗利金額ランキング.tsv",
+        )
+        write_tsv_rows(
+            pszGrossProfitCumulativeSortedPath,
+            [objCumulativeHeader] + objCumulativeBody,
+        )
+
 
 def create_cumulative_report(
     pszDirectory: str,
