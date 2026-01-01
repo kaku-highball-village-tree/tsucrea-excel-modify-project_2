@@ -3478,6 +3478,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         objSheet10GroupLines: List[str] = objSheet10GroupFile.readlines()
 
     objSheet10Rows: List[Tuple[str, str]] = []
+    objSheet10GroupRows: List[Tuple[str, str, str]] = []
     with open(pszSheet10TsvPath, "w", encoding="utf-8") as objSheet10File:
         for pszLine in objSheet7Lines:
             pszLineContent: str = pszLine.rstrip("\n")
