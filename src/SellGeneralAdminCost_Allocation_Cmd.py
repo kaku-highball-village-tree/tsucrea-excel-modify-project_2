@@ -1222,6 +1222,39 @@ def create_pj_summary(
         )
         write_tsv_rows(pszCostReportCumulativeOutputPath, objCostReportCumulativeRows)
 
+    pszSingleOutputVerticalPath: str = os.path.join(
+        pszDirectory,
+        "0003_PJサマリ_step0001_単月_損益計算書_vertical.tsv",
+    )
+    write_tsv_rows(pszSingleOutputVerticalPath, transpose_rows(objSingleOutputRows))
+
+    pszCumulativeOutputVerticalPath: str = os.path.join(
+        pszDirectory,
+        "0003_PJサマリ_step0001_累計_損益計算書_vertical.tsv",
+    )
+    write_tsv_rows(pszCumulativeOutputVerticalPath, transpose_rows(objCumulativeOutputRows))
+
+    if os.path.isfile(pszSingleCostReportPath):
+        objCostReportSingleRows = read_tsv_rows(pszSingleCostReportPath)
+        pszCostReportSingleVerticalPath: str = os.path.join(
+            pszDirectory,
+            "0003_PJサマリ_step0001_単月_製造原価報告書_vertical.tsv",
+        )
+        write_tsv_rows(
+            pszCostReportSingleVerticalPath,
+            transpose_rows(objCostReportSingleRows),
+        )
+    if os.path.isfile(pszCumulativeCostReportPath):
+        objCostReportCumulativeRows = read_tsv_rows(pszCumulativeCostReportPath)
+        pszCostReportCumulativeVerticalPath: str = os.path.join(
+            pszDirectory,
+            "0003_PJサマリ_step0001_累計_製造原価報告書_vertical.tsv",
+        )
+        write_tsv_rows(
+            pszCostReportCumulativeVerticalPath,
+            transpose_rows(objCostReportCumulativeRows),
+        )
+
     objTargetColumns: List[str] = [
         "科目名",
         "純売上高",
