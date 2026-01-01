@@ -1148,6 +1148,22 @@ def filter_rows_by_columns(
     return objFilteredRows
 
 
+def filter_rows_by_names(
+    objRows: List[List[str]],
+    objTargetNames: List[str],
+) -> List[List[str]]:
+    if not objRows:
+        return []
+    objTargetSet = set(objTargetNames)
+    objFilteredRows: List[List[str]] = []
+    for objRow in objRows:
+        if not objRow:
+            continue
+        if objRow[0] in objTargetSet:
+            objFilteredRows.append(objRow)
+    return objFilteredRows
+
+
 def create_pj_summary(
     pszPlPath: str,
     objRange: Tuple[Tuple[int, int], Tuple[int, int]],
@@ -1223,17 +1239,19 @@ def create_pj_summary(
         )
         write_tsv_rows(pszCostReportCumulativeOutputPath, objCostReportCumulativeRows)
 
+    objSingleOutputVerticalRows = transpose_rows(objSingleOutputRows)
     pszSingleOutputVerticalPath: str = os.path.join(
         pszDirectory,
         "0003_PJサマリ_step0001_単月_損益計算書.tsv",
     )
-    write_tsv_rows(pszSingleOutputVerticalPath, transpose_rows(objSingleOutputRows))
+    write_tsv_rows(pszSingleOutputVerticalPath, objSingleOutputVerticalRows)
 
+    objCumulativeOutputVerticalRows = transpose_rows(objCumulativeOutputRows)
     pszCumulativeOutputVerticalPath: str = os.path.join(
         pszDirectory,
         "0003_PJサマリ_step0001_累計_損益計算書.tsv",
     )
-    write_tsv_rows(pszCumulativeOutputVerticalPath, transpose_rows(objCumulativeOutputRows))
+    write_tsv_rows(pszCumulativeOutputVerticalPath, objCumulativeOutputVerticalRows)
 
     if os.path.isfile(pszSingleCostReportPath):
         pszCostReportSingleOutputPath: str = os.path.join(
@@ -1247,6 +1265,45 @@ def create_pj_summary(
             "0003_PJサマリ_step0001_累計_製造原価報告書.tsv",
         )
         shutil.copy2(pszCumulativeCostReportPath, pszCostReportCumulativeOutputPath)
+
+    objTargetNames: List[str] = [
+        "科目名",
+        "純売上高",
+        "売上総利益",
+        "配賦販管費",
+        "営業利益",
+    ]
+    objSingleStep0002Rows = filter_rows_by_names(
+        objSingleOutputVerticalRows,
+        objTargetNames,
+    )
+    objCumulativeStep0002Rows = filter_rows_by_names(
+        objCumulativeOutputVerticalRows,
+        objTargetNames,
+    )
+    pszSingleStep0002Path: str = os.path.join(
+        pszDirectory,
+        "0003_PJサマリ_step0002_単月_損益計算書.tsv",
+    )
+    pszCumulativeStep0002Path: str = os.path.join(
+        pszDirectory,
+        "0003_PJサマリ_step0002_累計_損益計算書.tsv",
+    )
+    write_tsv_rows(pszSingleStep0002Path, objSingleStep0002Rows)
+    write_tsv_rows(pszCumulativeStep0002Path, objCumulativeStep0002Rows)
+
+    if os.path.isfile(pszSingleCostReportPath):
+        pszCostReportSingleStep0002Path: str = os.path.join(
+            pszDirectory,
+            "0003_PJサマリ_step0002_単月_製造原価報告書.tsv",
+        )
+        shutil.copy2(pszSingleCostReportPath, pszCostReportSingleStep0002Path)
+    if os.path.isfile(pszCumulativeCostReportPath):
+        pszCostReportCumulativeStep0002Path: str = os.path.join(
+            pszDirectory,
+            "0003_PJサマリ_step0002_累計_製造原価報告書.tsv",
+        )
+        shutil.copy2(pszCumulativeCostReportPath, pszCostReportCumulativeStep0002Path)
 
     objTargetColumns: List[str] = [
         "科目名",
