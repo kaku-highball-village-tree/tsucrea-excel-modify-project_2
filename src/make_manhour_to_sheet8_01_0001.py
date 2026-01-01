@@ -3331,6 +3331,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
     # (8) 工数_yyyy年mm月_step07_計算前_プロジェクト_工数.tsv
     #     工数_yyyy年mm月_step07_計算前_プロジェクト_所属グループ名_工数.tsv
     #     工数_yyyy年mm月_step08_合計_プロジェクト_工数.tsv
+    #     工数_yyyy年mm月_step08_合計_プロジェクト_所属グループ名_工数.tsv
     #     工数_yyyy年mm月_step09_昇順_合計_プロジェクト_工数.tsv
     pszSheet10GroupTaskTsvPath: str = pszSheet10TsvPath
     pszSheet10TsvPath: str = str(
@@ -3344,6 +3345,10 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
     pszSheet11TsvPath: str = str(
         objBaseDirectoryPath
         / f"工数_{iFileYear}年{iFileMonth:02d}月_step08_合計_プロジェクト_工数.tsv"
+    )
+    pszSheet11GroupTsvPath: str = str(
+        objBaseDirectoryPath
+        / f"工数_{iFileYear}年{iFileMonth:02d}月_step08_合計_プロジェクト_所属グループ名_工数.tsv"
     )
     pszSheet12TsvPath: str = str(
         objBaseDirectoryPath
@@ -3473,6 +3478,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         objSheet10GroupLines: List[str] = objSheet10GroupFile.readlines()
 
     objSheet10Rows: List[Tuple[str, str]] = []
+    objSheet10GroupRows: List[Tuple[str, str, str]] = []
     with open(pszSheet10TsvPath, "w", encoding="utf-8") as objSheet10File:
         for pszLine in objSheet7Lines:
             pszLineContent: str = pszLine.rstrip("\n")
@@ -3502,6 +3508,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
             pszLineContent = pszLine.rstrip("\n")
             if pszLineContent == "":
                 objSheet10GroupFile.write("\t\t\n")
+                objSheet10GroupRows.append(("", "", ""))
                 continue
             pszLineContent = preprocess_line_content_sheet10(pszLineContent)
             objColumns = pszLineContent.split("\t")
@@ -3525,6 +3532,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
             objSheet10GroupFile.write(
                 pszNormalizedName + "\t" + pszGroupName + "\t" + pszManhour + "\n",
             )
+            objSheet10GroupRows.append((pszNormalizedName, pszGroupName, pszManhour))
 
     objAggregatedSeconds: Dict[str, int] = {}
     objAggregatedOrder: List[str] = []
@@ -3545,6 +3553,27 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
             )
             objSheet11File.write(pszProjectName + "\t" + pszTotalManhour + "\n")
             objSheet11Rows.append((pszProjectName, pszTotalManhour))
+
+    objAggregatedGroupSeconds: Dict[Tuple[str, str], int] = {}
+    objAggregatedGroupOrder: List[Tuple[str, str]] = []
+    for pszProjectName, pszGroupName, pszManhour in objSheet10GroupRows:
+        if pszProjectName == "" and pszGroupName == "" and pszManhour == "":
+            continue
+        iSeconds = parse_manhour_to_seconds_sheet11(pszManhour)
+        objKey = (pszProjectName, pszGroupName)
+        if objKey not in objAggregatedGroupSeconds:
+            objAggregatedGroupSeconds[objKey] = 0
+            objAggregatedGroupOrder.append(objKey)
+        objAggregatedGroupSeconds[objKey] += iSeconds
+
+    with open(pszSheet11GroupTsvPath, "w", encoding="utf-8") as objSheet11GroupFile:
+        for pszProjectName, pszGroupName in objAggregatedGroupOrder:
+            pszTotalManhour = format_seconds_to_manhour_sheet11(
+                objAggregatedGroupSeconds[(pszProjectName, pszGroupName)],
+            )
+            objSheet11GroupFile.write(
+                pszProjectName + "\t" + pszGroupName + "\t" + pszTotalManhour + "\n",
+            )
 
     objIndexedSheet11Rows: List[Tuple[int, Tuple[str, str]]] = list(enumerate(objSheet11Rows))
     objIndexedSheet11Rows.sort(
