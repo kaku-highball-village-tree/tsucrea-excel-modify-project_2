@@ -3310,7 +3310,11 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         objBaseDirectoryPath
         / f"工数_{iFileYear}年{iFileMonth:02d}月_step06_旧版_氏名_スタッフコード.tsv"
     )
-    pszSheet10TsvPath: str = str(
+    pszSheet10StaffGroupTsvPath: str = str(
+        objBaseDirectoryPath
+        / f"工数_{iFileYear}年{iFileMonth:02d}月_step06_プロジェクト_スタッフ所属グループ名_タスク_工数.tsv"
+    )
+    pszSheet10GroupTaskTsvPath: str = str(
         objBaseDirectoryPath
         / f"工数_{iFileYear}年{iFileMonth:02d}月_step06_プロジェクト_所属グループ名_タスク_工数.tsv"
     )
@@ -3325,8 +3329,40 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         os.replace(pszSheet8DefaultTsvPath, pszSheet8TsvPath)
     if pszSheet9DefaultTsvPath != pszSheet9TsvPath:
         os.replace(pszSheet9DefaultTsvPath, pszSheet9TsvPath)
-    if pszSheet10DefaultTsvPath != pszSheet10TsvPath:
-        os.replace(pszSheet10DefaultTsvPath, pszSheet10TsvPath)
+    if pszSheet10DefaultTsvPath != pszSheet10StaffGroupTsvPath:
+        os.replace(pszSheet10DefaultTsvPath, pszSheet10StaffGroupTsvPath)
+
+    def normalize_group_name_sheet10(pszGroupName: str) -> str:
+        objReplaceTargets: List[Tuple[str, str]] = [
+            ("本部", "本部"),
+            ("事業開発", "事業開発"),
+            ("子会社", "子会社"),
+            ("投資先", "投資先"),
+            ("第１インキュ", "第一インキュ"),
+            ("第２インキュ", "第二インキュ"),
+            ("第３インキュ", "第三インキュ"),
+            ("第４インキュ", "第四インキュ"),
+            ("第1インキュ", "第一インキュ"),
+            ("第2インキュ", "第二インキュ"),
+            ("第3インキュ", "第三インキュ"),
+            ("第4インキュ", "第四インキュ"),
+        ]
+        for pszPrefix, pszReplacement in objReplaceTargets:
+            if pszGroupName.startswith(pszPrefix):
+                return pszReplacement
+        return pszGroupName
+
+    with open(pszSheet10StaffGroupTsvPath, "r", encoding="utf-8") as objSheet10GroupFile:
+        with open(pszSheet10GroupTaskTsvPath, "w", encoding="utf-8") as objSheet10GroupOutputFile:
+            for pszLine in objSheet10GroupFile:
+                pszLineContent = pszLine.rstrip("\n")
+                if pszLineContent == "":
+                    objSheet10GroupOutputFile.write("\n")
+                    continue
+                objColumns = pszLineContent.split("\t")
+                if len(objColumns) > 1:
+                    objColumns[1] = normalize_group_name_sheet10(objColumns[1])
+                objSheet10GroupOutputFile.write("\t".join(objColumns) + "\n")
 
     # (8) 工数_yyyy年mm月_step07_計算前_プロジェクト_工数.tsv
     #     工数_yyyy年mm月_step07_計算前_プロジェクト_所属グループ名_工数.tsv
