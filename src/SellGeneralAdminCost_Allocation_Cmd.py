@@ -22,6 +22,7 @@ SellGeneralAdminCost_Allocation_Cmd.py
 from __future__ import annotations
 
 import os
+import shutil
 import re
 import sys
 from typing import Dict, List, Optional, Tuple
@@ -1224,36 +1225,28 @@ def create_pj_summary(
 
     pszSingleOutputVerticalPath: str = os.path.join(
         pszDirectory,
-        "0003_PJサマリ_step0001_単月_損益計算書_vertical.tsv",
+        "0003_PJサマリ_step0001_単月_損益計算書.tsv",
     )
     write_tsv_rows(pszSingleOutputVerticalPath, transpose_rows(objSingleOutputRows))
 
     pszCumulativeOutputVerticalPath: str = os.path.join(
         pszDirectory,
-        "0003_PJサマリ_step0001_累計_損益計算書_vertical.tsv",
+        "0003_PJサマリ_step0001_累計_損益計算書.tsv",
     )
     write_tsv_rows(pszCumulativeOutputVerticalPath, transpose_rows(objCumulativeOutputRows))
 
     if os.path.isfile(pszSingleCostReportPath):
-        objCostReportSingleRows = read_tsv_rows(pszSingleCostReportPath)
-        pszCostReportSingleVerticalPath: str = os.path.join(
+        pszCostReportSingleOutputPath: str = os.path.join(
             pszDirectory,
-            "0003_PJサマリ_step0001_単月_製造原価報告書_vertical.tsv",
+            "0003_PJサマリ_step0001_単月_製造原価報告書.tsv",
         )
-        write_tsv_rows(
-            pszCostReportSingleVerticalPath,
-            transpose_rows(objCostReportSingleRows),
-        )
+        shutil.copy2(pszSingleCostReportPath, pszCostReportSingleOutputPath)
     if os.path.isfile(pszCumulativeCostReportPath):
-        objCostReportCumulativeRows = read_tsv_rows(pszCumulativeCostReportPath)
-        pszCostReportCumulativeVerticalPath: str = os.path.join(
+        pszCostReportCumulativeOutputPath: str = os.path.join(
             pszDirectory,
-            "0003_PJサマリ_step0001_累計_製造原価報告書_vertical.tsv",
+            "0003_PJサマリ_step0001_累計_製造原価報告書.tsv",
         )
-        write_tsv_rows(
-            pszCostReportCumulativeVerticalPath,
-            transpose_rows(objCostReportCumulativeRows),
-        )
+        shutil.copy2(pszCumulativeCostReportPath, pszCostReportCumulativeOutputPath)
 
     objTargetColumns: List[str] = [
         "科目名",
