@@ -27,6 +27,8 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import tkinter as tk
+from tkinter import messagebox
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 import pandas as pd
@@ -3606,7 +3608,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
 
     objAggregatedGroupSeconds: Dict[str, int] = {}
     objAggregatedGroupOrder: List[str] = []
-    objAggregatedGroupName: Dict[str, str] = {}
+    objAggregatedGroupNames: Dict[str, List[str]] = {}
     for pszProjectName, pszGroupName, pszManhour in objSheet10GroupRows:
         if pszProjectName == "" and pszGroupName == "" and pszManhour == "":
             continue
@@ -3614,18 +3616,82 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         if pszProjectName not in objAggregatedGroupSeconds:
             objAggregatedGroupSeconds[pszProjectName] = 0
             objAggregatedGroupOrder.append(pszProjectName)
-            objAggregatedGroupName[pszProjectName] = pszGroupName
+            objAggregatedGroupNames[pszProjectName] = []
+        if pszGroupName not in objAggregatedGroupNames[pszProjectName]:
+            objAggregatedGroupNames[pszProjectName].append(pszGroupName)
         objAggregatedGroupSeconds[pszProjectName] += iSeconds
+
+    objIncubationPriority: List[str] = [
+        "第一インキュ",
+        "第二インキュ",
+        "第三インキュ",
+        "第四インキュ",
+    ]
+    objIncubationPrioritySet: set[str] = set(objIncubationPriority)
+    objIncubationExceptionProjects: set[str] = {
+        "P25001",
+        "P25002",
+        "P25003",
+        "P25004",
+        "P25005",
+        "P25006",
+        "P25007",
+        "P25008",
+        "P25009",
+    }
+    objHoldProjectLines: List[str] = []
+
+    def select_group_name_step08(
+        pszProjectName: str,
+        objGroupNames: List[str],
+    ) -> str:
+        if not objGroupNames:
+            return ""
+        pszProjectPrefix: str = pszProjectName[:1]
+        if pszProjectPrefix in ["A", "H"]:
+            return "本部"
+        if pszProjectPrefix in ["J", "P"]:
+            pszProjectCode: str = pszProjectName.split("_", 1)[0]
+            if pszProjectPrefix == "P" and pszProjectCode in objIncubationExceptionProjects:
+                return "第一インキュ"
+            objIncubations: List[str] = [
+                name for name in objGroupNames if name in objIncubationPrioritySet
+            ]
+            objIncubations.sort(
+                key=lambda name: objIncubationPriority.index(name),
+            )
+            if len(objIncubations) > 1:
+                objHoldProjectLines.append(
+                    f"{pszProjectName} → {' / '.join(objGroupNames)}",
+                )
+            if objIncubations:
+                return objIncubations[0]
+        return objGroupNames[0]
 
     with open(pszSheet11GroupTsvPath, "w", encoding="utf-8") as objSheet11GroupFile:
         for pszProjectName in objAggregatedGroupOrder:
             pszTotalManhour = format_seconds_to_manhour_sheet11(
                 objAggregatedGroupSeconds[pszProjectName],
             )
-            pszGroupName = objAggregatedGroupName.get(pszProjectName, "")
+            pszGroupName = select_group_name_step08(
+                pszProjectName,
+                objAggregatedGroupNames.get(pszProjectName, []),
+            )
             objSheet11GroupFile.write(
                 pszProjectName + "\t" + pszGroupName + "\t" + pszTotalManhour + "\n",
             )
+
+    if objHoldProjectLines:
+        for pszLine in objHoldProjectLines:
+            print(pszLine)
+            write_debug_error(pszLine, objBaseDirectoryPath)
+        objMessage = "インキュがかぶっているプロジェクトがあります。\n" + "\n".join(
+            objHoldProjectLines,
+        )
+        objRoot = tk.Tk()
+        objRoot.withdraw()
+        messagebox.showwarning("警告", objMessage)
+        objRoot.destroy()
 
     objIndexedSheet11Rows: List[Tuple[int, Tuple[str, str]]] = list(enumerate(objSheet11Rows))
     objIndexedSheet11Rows.sort(
