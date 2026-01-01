@@ -3329,11 +3329,17 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         os.replace(pszSheet10DefaultTsvPath, pszSheet10TsvPath)
 
     # (8) 工数_yyyy年mm月_step07_計算前_プロジェクト_工数.tsv
+    #     工数_yyyy年mm月_step07_計算前_プロジェクト_所属グループ名_工数.tsv
     #     工数_yyyy年mm月_step08_合計_プロジェクト_工数.tsv
     #     工数_yyyy年mm月_step09_昇順_合計_プロジェクト_工数.tsv
+    pszSheet10GroupTaskTsvPath: str = pszSheet10TsvPath
     pszSheet10TsvPath: str = str(
         objBaseDirectoryPath
         / f"工数_{iFileYear}年{iFileMonth:02d}月_step07_計算前_プロジェクト_工数.tsv"
+    )
+    pszSheet10GroupTsvPath: str = str(
+        objBaseDirectoryPath
+        / f"工数_{iFileYear}年{iFileMonth:02d}月_step07_計算前_プロジェクト_所属グループ名_工数.tsv"
     )
     pszSheet11TsvPath: str = str(
         objBaseDirectoryPath
@@ -3463,6 +3469,8 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
 
     with open(pszSheet7TsvPath, "r", encoding="utf-8") as objSheet7File:
         objSheet7Lines: List[str] = objSheet7File.readlines()
+    with open(pszSheet10GroupTaskTsvPath, "r", encoding="utf-8") as objSheet10GroupFile:
+        objSheet10GroupLines: List[str] = objSheet10GroupFile.readlines()
 
     objSheet10Rows: List[Tuple[str, str]] = []
     with open(pszSheet10TsvPath, "w", encoding="utf-8") as objSheet10File:
@@ -3488,6 +3496,35 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
                 pszNormalizedName = normalize_project_name_sheet10(pszProjectName)
             objSheet10File.write(pszNormalizedName + "\t" + pszManhour + "\n")
             objSheet10Rows.append((pszNormalizedName, pszManhour))
+
+    with open(pszSheet10GroupTsvPath, "w", encoding="utf-8") as objSheet10GroupFile:
+        for pszLine in objSheet10GroupLines:
+            pszLineContent = pszLine.rstrip("\n")
+            if pszLineContent == "":
+                objSheet10GroupFile.write("\t\t\n")
+                continue
+            pszLineContent = preprocess_line_content_sheet10(pszLineContent)
+            objColumns = pszLineContent.split("\t")
+            pszProjectName = ""
+            pszGroupName = ""
+            pszManhour = ""
+            if len(objColumns) > 0:
+                pszProjectName = objColumns[0]
+            if len(objColumns) > 1:
+                pszGroupName = objColumns[1]
+            if len(objColumns) > 3:
+                pszManhour = objColumns[3]
+            elif len(objColumns) > 2:
+                pszManhour = objColumns[2]
+            elif len(objColumns) > 1:
+                pszManhour = objColumns[1]
+            if is_blank_sheet10(pszProjectName):
+                pszNormalizedName = ""
+            else:
+                pszNormalizedName = normalize_project_name_sheet10(pszProjectName)
+            objSheet10GroupFile.write(
+                pszNormalizedName + "\t" + pszGroupName + "\t" + pszManhour + "\n",
+            )
 
     objAggregatedSeconds: Dict[str, int] = {}
     objAggregatedOrder: List[str] = []
