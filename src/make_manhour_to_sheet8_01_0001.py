@@ -3604,23 +3604,25 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
             objSheet11File.write(pszProjectName + "\t" + pszTotalManhour + "\n")
             objSheet11Rows.append((pszProjectName, pszTotalManhour))
 
-    objAggregatedGroupSeconds: Dict[Tuple[str, str], int] = {}
-    objAggregatedGroupOrder: List[Tuple[str, str]] = []
+    objAggregatedGroupSeconds: Dict[str, int] = {}
+    objAggregatedGroupOrder: List[str] = []
+    objAggregatedGroupName: Dict[str, str] = {}
     for pszProjectName, pszGroupName, pszManhour in objSheet10GroupRows:
         if pszProjectName == "" and pszGroupName == "" and pszManhour == "":
             continue
         iSeconds = parse_manhour_to_seconds_sheet11(pszManhour)
-        objKey = (pszProjectName, pszGroupName)
-        if objKey not in objAggregatedGroupSeconds:
-            objAggregatedGroupSeconds[objKey] = 0
-            objAggregatedGroupOrder.append(objKey)
-        objAggregatedGroupSeconds[objKey] += iSeconds
+        if pszProjectName not in objAggregatedGroupSeconds:
+            objAggregatedGroupSeconds[pszProjectName] = 0
+            objAggregatedGroupOrder.append(pszProjectName)
+            objAggregatedGroupName[pszProjectName] = pszGroupName
+        objAggregatedGroupSeconds[pszProjectName] += iSeconds
 
     with open(pszSheet11GroupTsvPath, "w", encoding="utf-8") as objSheet11GroupFile:
-        for pszProjectName, pszGroupName in objAggregatedGroupOrder:
+        for pszProjectName in objAggregatedGroupOrder:
             pszTotalManhour = format_seconds_to_manhour_sheet11(
-                objAggregatedGroupSeconds[(pszProjectName, pszGroupName)],
+                objAggregatedGroupSeconds[pszProjectName],
             )
+            pszGroupName = objAggregatedGroupName.get(pszProjectName, "")
             objSheet11GroupFile.write(
                 pszProjectName + "\t" + pszGroupName + "\t" + pszTotalManhour + "\n",
             )
