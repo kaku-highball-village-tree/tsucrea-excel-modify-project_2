@@ -376,50 +376,49 @@ def run_pl_csv_to_tsv(
         show_error_message_box(pszErrorMessage, "SellGeneralAdminCost_Allocation_DnD")
         return 1
 
-    objMessages: List[str] = []
+    objCommand: List[str] = [sys.executable, pszScriptPath] + objCsvFiles
+    append_error_log("Running: " + " ".join(objCommand))
+    try:
+        objResult = subprocess.run(
+            objCommand,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except Exception as exc:  # noqa: BLE001
+        pszErrorMessage: str = (
+            "Error: unexpected exception while running PL_CsvToTsv_Cmd.py. Detail = "
+            + str(exc)
+        )
+        show_error_message_box(pszErrorMessage, "SellGeneralAdminCost_Allocation_DnD")
+        return 1
+
+    if objResult.returncode != 0:
+        pszStdErr: str = objResult.stderr
+        if pszStdErr.strip() == "":
+            pszStdErr = "Process exited with non-zero return code and no stderr output."
+        pszErrorMessage = (
+            "Error: PL_CsvToTsv_Cmd.py exited with non-zero return code.\n\n"
+            + "Return code = "
+            + str(objResult.returncode)
+            + "\n\n"
+            + "stderr:\n"
+            + pszStdErr
+        )
+        show_error_message_box(pszErrorMessage, "SellGeneralAdminCost_Allocation_DnD")
+        return objResult.returncode
+
+    pszStdOut: str = objResult.stdout.strip()
+    if pszStdOut != "":
+        print(pszStdOut)
+        move_output_files_to_temp(pszStdOut)
+
     for pszCsvPath in objCsvFiles:
-        objCommand: List[str] = [sys.executable, pszScriptPath, pszCsvPath]
-        append_error_log("Running: " + " ".join(objCommand))
-        try:
-            objResult = subprocess.run(
-                objCommand,
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-        except Exception as exc:  # noqa: BLE001
-            pszErrorMessage: str = (
-                "Error: unexpected exception while running PL_CsvToTsv_Cmd.py. Detail = "
-                + str(exc)
-            )
-            show_error_message_box(pszErrorMessage, "SellGeneralAdminCost_Allocation_DnD")
-            return 1
-
-        if objResult.returncode != 0:
-            pszStdErr: str = objResult.stderr
-            if pszStdErr.strip() == "":
-                pszStdErr = "Process exited with non-zero return code and no stderr output."
-            pszErrorMessage = (
-                "Error: PL_CsvToTsv_Cmd.py exited with non-zero return code.\n\n"
-                + "Return code = "
-                + str(objResult.returncode)
-                + "\n\n"
-                + "stderr:\n"
-                + pszStdErr
-            )
-            show_error_message_box(pszErrorMessage, "SellGeneralAdminCost_Allocation_DnD")
-            return objResult.returncode
-
-        pszStdOut: str = objResult.stdout.strip()
-        if pszStdOut != "":
-            print(pszStdOut)
-            move_output_files_to_temp(pszStdOut)
-            objMessages.append(pszStdOut)
         move_pl_outputs_to_temp(pszCsvPath)
 
     pszMessage: str = "PL_CsvToTsv_Cmd.py finished successfully."
-    if objMessages:
-        pszMessage = "\n".join(objMessages)
+    if pszStdOut != "":
+        pszMessage = pszStdOut
     show_message_box(pszMessage, "SellGeneralAdminCost_Allocation_DnD")
     return 0
 
