@@ -3281,6 +3281,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
     # (7) 工数_yyyy年mm月_step06_プロジェクト_タスク_工数.tsv
     #     工数_yyyy年mm月_step06_旧版_スタッフ別_プロジェクト_タスク_工数.tsv
     #     工数_yyyy年mm月_step06_旧版_氏名_スタッフコード.tsv
+    #     工数_yyyy年mm月_step06_プロジェクト_所属グループ名_タスク_工数.tsv
     objModuleMakeSheet789: Dict[str, Any] = create_module_from_source(
         "make_sheet789_from_sheet4",
         pszSource_make_sheet789_from_sheet4_py,
