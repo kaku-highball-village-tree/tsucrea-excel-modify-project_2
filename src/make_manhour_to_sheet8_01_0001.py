@@ -1908,6 +1908,19 @@ def build_output_file_full_path_for_sheet9(
     return os.path.join(pszDirectory, pszOutputBaseName)
 
 
+# ---------------------------------------------------------------
+# Sheet10.tsv の出力ファイルパスを構築
+# ---------------------------------------------------------------
+def build_output_file_full_path_for_sheet10(
+    pszSheet4FileFullPath: str,
+) -> str:
+    pszDirectory: str = os.path.dirname(pszSheet4FileFullPath)
+    pszOutputBaseName: str = "Sheet10.tsv"
+    if len(pszDirectory) == 0:
+        return pszOutputBaseName
+    return os.path.join(pszDirectory, pszOutputBaseName)
+
+
 # ///////////////////////////////////////////////////////////////
 # ///////////////////////////////////////////////////////////////
 # //  文字列の時間（hh:mm:ss または hh:mm）を「秒数(int)」に変換する関数。
@@ -1981,6 +1994,8 @@ def make_sheet789_from_sheet4(
     pszSheet8ErrorFileFullPath: str = pszSheet8FileFullPath.replace(".tsv", "_error.tsv")
     pszSheet9FileFullPath: str = build_output_file_full_path_for_sheet9(pszSheet4FileFullPath)
     pszSheet9ErrorFileFullPath: str = pszSheet9FileFullPath.replace(".tsv", "_error.tsv")
+    pszSheet10FileFullPath: str = build_output_file_full_path_for_sheet10(pszSheet4FileFullPath)
+    pszSheet10ErrorFileFullPath: str = pszSheet10FileFullPath.replace(".tsv", "_error.tsv")
 
     # 入力ファイル存在チェック（Sheet4）
     if not os.path.isfile(pszSheet4FileFullPath):
@@ -2041,6 +2056,13 @@ def make_sheet789_from_sheet4(
         pszNameColumn = "姓 名"
     elif "氏名" in objSheet4Columns:
         pszNameColumn = "氏名"
+
+    # 所属グループ列の候補を探す
+    pszGroupColumn: str = ""
+    if "所属グループ名" in objSheet4Columns:
+        pszGroupColumn = "所属グループ名"
+    elif "所属グループ" in objSheet4Columns:
+        pszGroupColumn = "所属グループ"
 
     # 工数列を秒数に変した補助列を追加
     try:
@@ -2195,6 +2217,7 @@ def make_sheet789_from_sheet4(
     objListOutputRowsSheet7: List[List[str]] = []
     objListOutputRowsSheet8: List[List[str]] = []
     objListOutputRowsSheet9: List[List[str]] = []
+    objListOutputRowsSheet10: List[List[str]] = []
 
     # Sheet9 用: スタッフコード一覧を元に「氏名・スタッフコード」を作成
     objSetAddedStaffCodeForSheet9: Set[str] = set()
@@ -2276,6 +2299,14 @@ def make_sheet789_from_sheet4(
                     iTotalSeconds = 0
 
                 pszTimeTotal: str = convert_seconds_to_time_string(iTotalSeconds)
+                pszGroupName: str = ""
+                if pszGroupColumn != "":
+                    try:
+                        objGroupSeries = objDataFrameSubProject[pszGroupColumn].dropna()
+                        if not objGroupSeries.empty:
+                            pszGroupName = str(objGroupSeries.iloc[0])
+                    except Exception:
+                        pszGroupName = ""
 
                 # スタッフコードは各行すべてに出力
                 pszStaffCodeForRow: str = pszStaffCode
@@ -2293,6 +2324,11 @@ def make_sheet789_from_sheet4(
                 # Sheet8 用の 1 行（Sheet7 の前に氏名列を追加）
                 objListOutputRowsSheet8.append(
                     [pszStaffNameForRow, pszProjectNameFromSheet6, pszStaffCodeForRow, pszTimeTotal],
+                )
+
+                # Sheet10 用の 1 行（所属グループ列を追加）
+                objListOutputRowsSheet10.append(
+                    [pszProjectNameFromSheet6, pszGroupName, pszStaffCodeForRow, pszTimeTotal],
                 )
 
                 iRowIndexWithinStaff += 1
@@ -2355,6 +2391,23 @@ def make_sheet789_from_sheet4(
         write_error_tsv(
             pszSheet9ErrorFileFullPath,
             "Error: unexpected exception while writing Sheet9 TSV. Detail = {0}".format(objException),
+        )
+        return
+
+    try:
+        objDataFrameOutputSheet10: DataFrame = DataFrame(objListOutputRowsSheet10)
+        objDataFrameOutputSheet10.to_csv(
+            pszSheet10FileFullPath,
+            sep="\t",
+            index=False,
+            header=False,
+            encoding="utf-8",
+            lineterminator="\n",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszSheet10ErrorFileFullPath,
+            "Error: unexpected exception while writing Sheet10 TSV. Detail = {0}".format(objException),
         )
         return
 
@@ -3228,6 +3281,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
     # (7) 工数_yyyy年mm月_step06_プロジェクト_タスク_工数.tsv
     #     工数_yyyy年mm月_step06_旧版_スタッフ別_プロジェクト_タスク_工数.tsv
     #     工数_yyyy年mm月_step06_旧版_氏名_スタッフコード.tsv
+    #     工数_yyyy年mm月_step06_プロジェクト_所属グループ名_タスク_工数.tsv
     objModuleMakeSheet789: Dict[str, Any] = create_module_from_source(
         "make_sheet789_from_sheet4",
         pszSource_make_sheet789_from_sheet4_py,
@@ -3241,6 +3295,9 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
     pszSheet9DefaultTsvPath: str = objModuleMakeSheet789[
         "build_output_file_full_path_for_sheet9"
     ](pszSheet4TsvPath)
+    pszSheet10DefaultTsvPath: str = objModuleMakeSheet789[
+        "build_output_file_full_path_for_sheet10"
+    ](pszSheet4TsvPath)
     pszSheet7TsvPath: str = str(
         objBaseDirectoryPath
         / f"工数_{iFileYear}年{iFileMonth:02d}月_step06_プロジェクト_タスク_工数.tsv"
@@ -3253,6 +3310,10 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         objBaseDirectoryPath
         / f"工数_{iFileYear}年{iFileMonth:02d}月_step06_旧版_氏名_スタッフコード.tsv"
     )
+    pszSheet10TsvPath: str = str(
+        objBaseDirectoryPath
+        / f"工数_{iFileYear}年{iFileMonth:02d}月_step06_プロジェクト_所属グループ名_タスク_工数.tsv"
+    )
     objModuleMakeSheet789["make_sheet789_from_sheet4"](
         pszSheet4TsvPath,
         pszSheet4StaffCodeRangeTsvPath,
@@ -3264,6 +3325,8 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         os.replace(pszSheet8DefaultTsvPath, pszSheet8TsvPath)
     if pszSheet9DefaultTsvPath != pszSheet9TsvPath:
         os.replace(pszSheet9DefaultTsvPath, pszSheet9TsvPath)
+    if pszSheet10DefaultTsvPath != pszSheet10TsvPath:
+        os.replace(pszSheet10DefaultTsvPath, pszSheet10TsvPath)
 
     # (8) 工数_yyyy年mm月_step07_計算前_プロジェクト_工数.tsv
     #     工数_yyyy年mm月_step08_合計_プロジェクト_工数.tsv
