@@ -3369,8 +3369,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
     #     工数_yyyy年mm月_step08_合計_プロジェクト_工数.tsv
     #     工数_yyyy年mm月_step08_合計_プロジェクト_所属グループ名_工数.tsv
     #     工数_yyyy年mm月_step09_昇順_合計_プロジェクト_工数.tsv
-    pszSheet10GroupTaskTsvPath: str = pszSheet10TsvPath
-    pszSheet10TsvPath: str = str(
+    pszSheet10ProjectTsvPath: str = str(
         objBaseDirectoryPath
         / f"工数_{iFileYear}年{iFileMonth:02d}月_step07_計算前_プロジェクト_工数.tsv"
     )
@@ -3514,8 +3513,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         objSheet10GroupLines: List[str] = objSheet10GroupFile.readlines()
 
     objSheet10Rows: List[Tuple[str, str]] = []
-    objSheet10GroupRows: List[Tuple[str, str, str]] = []
-    with open(pszSheet10TsvPath, "w", encoding="utf-8") as objSheet10File:
+    with open(pszSheet10ProjectTsvPath, "w", encoding="utf-8") as objSheet10File:
         for pszLine in objSheet7Lines:
             pszLineContent: str = pszLine.rstrip("\n")
             if pszLineContent == "":
