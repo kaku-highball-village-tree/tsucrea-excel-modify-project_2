@@ -3682,11 +3682,22 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
             )
 
     if objHoldProjectLines:
+        pszInputFileLine: str = f"入力ファイル名: {objInputPath.name}"
+        pszGroupTsvLine: str = f"対象TSV: {pszSheet10GroupTsvPath}"
+        print(pszInputFileLine)
+        print(pszGroupTsvLine)
+        write_debug_error(pszInputFileLine, objBaseDirectoryPath)
+        write_debug_error(pszGroupTsvLine, objBaseDirectoryPath)
         for pszLine in objHoldProjectLines:
             print(pszLine)
             write_debug_error(pszLine, objBaseDirectoryPath)
-        objMessage = "インキュがかぶっているプロジェクトがあります。\n" + "\n".join(
-            objHoldProjectLines,
+        objMessage = (
+            "インキュがかぶっているプロジェクトがあります。\n"
+            + pszInputFileLine
+            + "\n"
+            + pszGroupTsvLine
+            + "\n"
+            + "\n".join(objHoldProjectLines)
         )
         objRoot = tk.Tk()
         objRoot.withdraw()
