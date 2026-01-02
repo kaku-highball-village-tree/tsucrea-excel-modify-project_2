@@ -3523,8 +3523,21 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
             with open(objOrgTableTsvPath, "w", encoding="utf-8") as objOrgTableTsvFile:
                 objOrgTableWriter = csv.writer(objOrgTableTsvFile, delimiter="\t", lineterminator="\n")
                 for objRow in objOrgTableReader:
-                    if len(objRow) >= 3:
-                        objRow[2] = normalize_org_table_project_code(objRow[2])
+                    objRow = [objCell.replace("=match'", "") for objCell in objRow]
+                    while objRow and objRow[-1] == "":
+                        objRow.pop()
+                    if objRow and objRow[0] != "No":
+                        if len(objRow) >= 3:
+                            objRow[2] = normalize_org_table_project_code(objRow[2])
+                        if len(objRow) >= 2:
+                            pszProjectCodePrefix: str = ""
+                            if len(objRow) >= 3 and objRow[2]:
+                                pszProjectCodePrefix = objRow[2].split("_", 1)[0]
+                            if "_" not in objRow[1] and pszProjectCodePrefix:
+                                objRow[1] = f"{pszProjectCodePrefix}_{objRow[1]}"
+                            objRow[1] = normalize_org_table_project_code(objRow[1])
+                    while objRow and objRow[-1] == "":
+                        objRow.pop()
                     objOrgTableWriter.writerow(objRow)
     else:
         pszOrgTableError = f"Error: 組織表.csv が見つかりません。Path = {objOrgTableCsvPath}"
