@@ -3533,8 +3533,11 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
                             pszProjectCodePrefix: str = ""
                             if len(objRow) >= 3 and objRow[2]:
                                 pszProjectCodePrefix = objRow[2].split("_", 1)[0]
-                            if "_" not in objRow[1] and pszProjectCodePrefix:
-                                objRow[1] = f"{pszProjectCodePrefix}_{objRow[1]}"
+                            pszProjectNameRaw: str = objRow[1]
+                            pszProjectNameTrimmed: str = pszProjectNameRaw.strip()
+                            if pszProjectCodePrefix and pszProjectNameTrimmed != pszProjectCodePrefix:
+                                if not pszProjectNameTrimmed.startswith(f"{pszProjectCodePrefix}_"):
+                                    objRow[1] = f"{pszProjectCodePrefix}_{pszProjectNameRaw}"
                             objRow[1] = normalize_org_table_project_code(objRow[1])
                     while objRow and objRow[-1] == "":
                         objRow.pop()
