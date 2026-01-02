@@ -162,6 +162,7 @@ def add_project_code_prefix_step0003(
     pszProjectName: str,
     pszProjectCode: str,
 ) -> str:
+    # add_project_code_prefix_step0003の処理
     if pszProjectName == "":
         return pszProjectCode
     if re.match(r"^[A-Z]", pszProjectName) and re.match(
