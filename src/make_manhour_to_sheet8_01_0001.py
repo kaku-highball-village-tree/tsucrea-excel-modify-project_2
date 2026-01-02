@@ -165,14 +165,17 @@ def convert_org_table_tsv(objBaseDirectoryPath: Path) -> None:
                     if objRow and objRow[0] != "No":
                         if len(objRow) >= 3:
                             objRow[2] = normalize_org_table_project_code(objRow[2])
-                        if len(objRow) >= 2:
-                            pszProjectCodePrefix: str = ""
-                            if len(objRow) >= 3 and objRow[2]:
-                                pszProjectCodePrefix = objRow[2].split("_", 1)[0]
+                            if len(objRow) >= 2:
+                                pszProjectCodePrefix: str = ""
+                                if len(objRow) >= 3 and objRow[2]:
+                                    pszProjectCodePrefix = objRow[2].split("_", 1)[0]
                             pszProjectNameRaw: str = objRow[1]
                             pszProjectNameTrimmed: str = pszProjectNameRaw.strip()
+                            pszProjectNameNormalized: str = normalize_org_table_project_code(
+                                pszProjectNameRaw,
+                            )
                             if pszProjectCodePrefix and pszProjectNameTrimmed != pszProjectCodePrefix:
-                                if not re.match(r"^(P\d{5}|[A-OQ-Z]\d{3})_", pszProjectNameTrimmed):
+                                if not re.match(r"^(P\d{5}|[A-OQ-Z]\d{3})_", pszProjectNameNormalized):
                                     objRow[1] = f"{pszProjectCodePrefix}_{pszProjectNameRaw}"
                             objRow[1] = normalize_org_table_project_code(objRow[1])
                     while objRow and objRow[-1] == "":
