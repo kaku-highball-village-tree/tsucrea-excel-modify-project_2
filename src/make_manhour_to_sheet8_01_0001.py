@@ -54,6 +54,139 @@ def get_target_year_month_from_filename(pszInputFilePath: str) -> Tuple[int, int
     iYear: int = 2000 + iYearTwoDigits
     return iYear, iMonth
 
+
+def normalize_project_name_sheet10(pszSource: str) -> str:
+    if pszSource.startswith("【廃番】"):
+        try:
+            code: str | None = None
+            code_index: int = -1
+            for prefix in ["J", "A", "C", "H", "M", "P"]:
+                search_from: int = 0
+                code_length: int = 4
+                if prefix == "P":
+                    code_length = 6
+                while True:
+                    found_index: int = pszSource.find(prefix, search_from)
+                    if found_index == -1:
+                        break
+                    if found_index + code_length <= len(pszSource):
+                        code = pszSource[found_index:found_index + code_length]
+                        code_index = found_index
+                        break
+                    search_from = found_index + 1
+                if code is not None:
+                    break
+            if code is None or code_index == -1:
+                return pszSource
+            head: str = pszSource[:code_index]
+            tail: str = pszSource[code_index + len(code):]
+            return code + "_" + head + tail
+        except Exception:
+            return pszSource
+
+    if pszSource.startswith("【"):
+        iBracketEndIndex: int = pszSource.find("】")
+        if iBracketEndIndex != -1:
+            pszAfterBracket: str = pszSource[iBracketEndIndex + 1:]
+            objMatch = re.search(r"(P\d{5}|[A-OQ-Z]\d{3})", pszAfterBracket)
+            if objMatch is not None:
+                pszCode: str = objMatch.group(1)
+                pszBeforeCode: str = pszAfterBracket[:objMatch.start()]
+                pszAfterCode: str = pszAfterBracket[objMatch.end():]
+                if pszAfterCode.startswith(" ") or pszAfterCode.startswith("　"):
+                    pszAfterCode = pszAfterCode[1:]
+                pszRest: str = pszSource[: iBracketEndIndex + 1] + pszBeforeCode + pszAfterCode
+                return pszCode + "_" + pszRest
+
+    if len(pszSource) >= 1 and pszSource[0] in ["J", "A", "C", "H", "M"]:
+        if len(pszSource) >= 5:
+            next_char: str = pszSource[4]
+            if next_char == "【":
+                return pszSource[:4] + "_" + pszSource[4:]
+            if next_char == " " or next_char == "　":
+                return pszSource[:4] + "_" + pszSource[5:]
+        return pszSource
+
+    if len(pszSource) >= 1 and pszSource[0] == "P":
+        if len(pszSource) >= 7:
+            next_char_p: str = pszSource[6]
+            if next_char_p == "【":
+                return pszSource[:6] + "_" + pszSource[6:]
+            if next_char_p == " " or next_char_p == "　":
+                return pszSource[:6] + "_" + pszSource[7:]
+        return pszSource
+
+    return pszSource
+
+
+def preprocess_line_content_sheet10(pszLineContent: str) -> str:
+    if pszLineContent.startswith('"'):
+        iSecondQuoteIndex: int = pszLineContent.find('"', 1)
+        if iSecondQuoteIndex != -1:
+            if iSecondQuoteIndex + 1 < len(pszLineContent) and pszLineContent[iSecondQuoteIndex + 1] == "\t":
+                pszQuotedContent: str = pszLineContent[1:iSecondQuoteIndex].replace("\t", "_")
+                pszLineContent = pszQuotedContent + pszLineContent[iSecondQuoteIndex + 1:]
+    pszLineContent = re.sub(
+        r'^"([^"]*)\t([^"]*)"([^\r\n]*)',
+        r"\1_\2\3",
+        pszLineContent,
+    )
+    pszLineContent = re.sub(r"(P\d\d\d\d\d)(?![ _\t　【])", r"\1_", pszLineContent)
+    pszLineContent = re.sub(r"([A-OQ-Z]\d\d\d)(?![ _\t　【])", r"\1_", pszLineContent)
+    pszLineContent = re.sub(r"^(J\d\d\d) +", r"\1_", pszLineContent)
+    pszLineContent = re.sub(r"([A-OQ-Z]\d\d\d)[ 　]+", r"\1_", pszLineContent)
+    pszLineContent = re.sub(r"(P\d\d\d\d\d)[ 　]+", r"\1_", pszLineContent)
+    pszLineContent = re.sub(r"\t[0-9]+\t", "\t", pszLineContent)
+    return pszLineContent
+
+
+def normalize_org_table_project_code(pszProjectCode: str) -> str:
+    pszNormalized = normalize_project_name_sheet10(pszProjectCode)
+    pszNormalized = pszNormalized.replace(" ", "_").replace("　", "_")
+    return pszNormalized
+
+
+def convert_org_table_tsv(objBaseDirectoryPath: Path) -> None:
+    objOrgTableCsvPath: Path = Path(__file__).resolve().parent / "組織表.csv"
+    objOrgTableTsvPath: Path = objOrgTableCsvPath.with_suffix(".tsv")
+    if objOrgTableCsvPath.exists():
+        with open(objOrgTableCsvPath, "r", encoding="utf-8") as objOrgTableCsvFile:
+            objOrgTableReader = csv.reader(objOrgTableCsvFile)
+            with open(objOrgTableTsvPath, "w", encoding="utf-8") as objOrgTableTsvFile:
+                objOrgTableWriter = csv.writer(
+                    objOrgTableTsvFile,
+                    delimiter="\t",
+                    lineterminator="\n",
+                )
+                for objRow in objOrgTableReader:
+                    objRow = [objCell.replace("=match'", "") for objCell in objRow]
+                    while objRow and objRow[-1] == "":
+                        objRow.pop()
+                    if objRow and objRow[0] != "No":
+                        if len(objRow) >= 3:
+                            objRow[2] = normalize_org_table_project_code(objRow[2])
+                        if len(objRow) >= 2:
+                            pszProjectCodePrefix: str = ""
+                            if len(objRow) >= 3 and objRow[2]:
+                                pszProjectCodePrefix = objRow[2].split("_", 1)[0]
+                            pszProjectNameRaw: str = objRow[1]
+                            pszProjectNameTrimmed: str = pszProjectNameRaw.strip()
+                            if pszProjectCodePrefix and pszProjectNameTrimmed != pszProjectCodePrefix:
+                                if not re.match(r"^(P\d{5}|[A-OQ-Z]\d{3})_", pszProjectNameTrimmed):
+                                    objRow[1] = f"{pszProjectCodePrefix}_{pszProjectNameRaw}"
+                            objRow[1] = normalize_org_table_project_code(objRow[1])
+                    while objRow and objRow[-1] == "":
+                        objRow.pop()
+                    objOrgTableWriter.writerow(objRow)
+    else:
+        pszOrgTableError = f"Error: 組織表.csv が見つかりません。Path = {objOrgTableCsvPath}"
+        print(pszOrgTableError)
+        write_debug_error(pszOrgTableError, objBaseDirectoryPath)
+        objRoot = tk.Tk()
+        objRoot.withdraw()
+        messagebox.showwarning("警告", pszOrgTableError)
+        objRoot.destroy()
+
 # ///////////////////////////////////////////////////////////////
 # EMBEDDED SOURCE: csv_to_tsv_h_mm_ss.py
 # ///////////////////////////////////////////////////////////////
@@ -3171,135 +3304,6 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
 
     objBaseDirectoryPath: Path = objInputPath.resolve().parent
 
-    def normalize_project_name_sheet10(pszSource: str) -> str:
-        if pszSource.startswith("【廃番】"):
-            try:
-                code: str | None = None
-                code_index: int = -1
-                for prefix in ["J", "A", "C", "H", "M", "P"]:
-                    search_from: int = 0
-                    code_length: int = 4
-                    if prefix == "P":
-                        code_length = 6
-                    while True:
-                        found_index: int = pszSource.find(prefix, search_from)
-                        if found_index == -1:
-                            break
-                        if found_index + code_length <= len(pszSource):
-                            code = pszSource[found_index:found_index + code_length]
-                            code_index = found_index
-                            break
-                        search_from = found_index + 1
-                    if code is not None:
-                        break
-                if code is None or code_index == -1:
-                    return pszSource
-                head: str = pszSource[:code_index]
-                tail: str = pszSource[code_index + len(code):]
-                return code + "_" + head + tail
-            except Exception:
-                return pszSource
-
-        if pszSource.startswith("【"):
-            iBracketEndIndex: int = pszSource.find("】")
-            if iBracketEndIndex != -1:
-                pszAfterBracket: str = pszSource[iBracketEndIndex + 1:]
-                objMatch = re.search(r"(P\d{5}|[A-OQ-Z]\d{3})", pszAfterBracket)
-                if objMatch is not None:
-                    pszCode: str = objMatch.group(1)
-                    pszBeforeCode: str = pszAfterBracket[:objMatch.start()]
-                    pszAfterCode: str = pszAfterBracket[objMatch.end():]
-                    if pszAfterCode.startswith(" ") or pszAfterCode.startswith("　"):
-                        pszAfterCode = pszAfterCode[1:]
-                    pszRest: str = pszSource[: iBracketEndIndex + 1] + pszBeforeCode + pszAfterCode
-                    return pszCode + "_" + pszRest
-
-        if len(pszSource) >= 1 and pszSource[0] in ["J", "A", "C", "H", "M"]:
-            if len(pszSource) >= 5:
-                next_char: str = pszSource[4]
-                if next_char == "【":
-                    return pszSource[:4] + "_" + pszSource[4:]
-                if next_char == " " or next_char == "　":
-                    return pszSource[:4] + "_" + pszSource[5:]
-            return pszSource
-
-        if len(pszSource) >= 1 and pszSource[0] == "P":
-            if len(pszSource) >= 7:
-                next_char_p: str = pszSource[6]
-                if next_char_p == "【":
-                    return pszSource[:6] + "_" + pszSource[6:]
-                if next_char_p == " " or next_char_p == "　":
-                    return pszSource[:6] + "_" + pszSource[7:]
-            return pszSource
-
-        return pszSource
-
-    def preprocess_line_content_sheet10(pszLineContent: str) -> str:
-        if pszLineContent.startswith('"'):
-            iSecondQuoteIndex: int = pszLineContent.find('"', 1)
-            if iSecondQuoteIndex != -1:
-                if iSecondQuoteIndex + 1 < len(pszLineContent) and pszLineContent[iSecondQuoteIndex + 1] == "\t":
-                    pszQuotedContent: str = pszLineContent[1:iSecondQuoteIndex].replace("\t", "_")
-                    pszLineContent = pszQuotedContent + pszLineContent[iSecondQuoteIndex + 1:]
-        pszLineContent = re.sub(
-            r'^"([^"]*)\t([^"]*)"([^\r\n]*)',
-            r"\1_\2\3",
-            pszLineContent,
-        )
-        pszLineContent = re.sub(r"(P\d\d\d\d\d)(?![ _\t　【])", r"\1_", pszLineContent)
-        pszLineContent = re.sub(r"([A-OQ-Z]\d\d\d)(?![ _\t　【])", r"\1_", pszLineContent)
-        pszLineContent = re.sub(r"^(J\d\d\d) +", r"\1_", pszLineContent)
-        pszLineContent = re.sub(r"([A-OQ-Z]\d\d\d)[ 　]+", r"\1_", pszLineContent)
-        pszLineContent = re.sub(r"(P\d\d\d\d\d)[ 　]+", r"\1_", pszLineContent)
-        pszLineContent = re.sub(r"\t[0-9]+\t", "\t", pszLineContent)
-        return pszLineContent
-
-    def normalize_org_table_project_code(pszProjectCode: str) -> str:
-        pszNormalized = normalize_project_name_sheet10(pszProjectCode)
-        pszNormalized = pszNormalized.replace(" ", "_").replace("　", "_")
-        return pszNormalized
-
-    objOrgTableCsvPath: Path = Path(__file__).resolve().parent / "組織表.csv"
-    objOrgTableTsvPath: Path = objOrgTableCsvPath.with_suffix(".tsv")
-    if not objOrgTableTsvPath.exists():
-        if objOrgTableCsvPath.exists():
-            with open(objOrgTableCsvPath, "r", encoding="utf-8") as objOrgTableCsvFile:
-                objOrgTableReader = csv.reader(objOrgTableCsvFile)
-                with open(objOrgTableTsvPath, "w", encoding="utf-8") as objOrgTableTsvFile:
-                    objOrgTableWriter = csv.writer(
-                        objOrgTableTsvFile,
-                        delimiter="\t",
-                        lineterminator="\n",
-                    )
-                    for objRow in objOrgTableReader:
-                        objRow = [objCell.replace("=match'", "") for objCell in objRow]
-                        while objRow and objRow[-1] == "":
-                            objRow.pop()
-                        if objRow and objRow[0] != "No":
-                            if len(objRow) >= 3:
-                                objRow[2] = normalize_org_table_project_code(objRow[2])
-                            if len(objRow) >= 2:
-                                pszProjectCodePrefix: str = ""
-                                if len(objRow) >= 3 and objRow[2]:
-                                    pszProjectCodePrefix = objRow[2].split("_", 1)[0]
-                                pszProjectNameRaw: str = objRow[1]
-                                pszProjectNameTrimmed: str = pszProjectNameRaw.strip()
-                                if pszProjectCodePrefix and pszProjectNameTrimmed != pszProjectCodePrefix:
-                                    if not pszProjectNameTrimmed.startswith(pszProjectCodePrefix):
-                                        objRow[1] = f"{pszProjectCodePrefix}_{pszProjectNameRaw}"
-                                objRow[1] = normalize_org_table_project_code(objRow[1])
-                        while objRow and objRow[-1] == "":
-                            objRow.pop()
-                        objOrgTableWriter.writerow(objRow)
-        else:
-            pszOrgTableError = f"Error: 組織表.csv が見つかりません。Path = {objOrgTableCsvPath}"
-            print(pszOrgTableError)
-            write_debug_error(pszOrgTableError, objBaseDirectoryPath)
-            objRoot = tk.Tk()
-            objRoot.withdraw()
-            messagebox.showwarning("警告", pszOrgTableError)
-            objRoot.destroy()
-
     # (1) CSV → TSV (H:MM:SS 化)
     objModuleCsvToTsv: Dict[str, Any] = create_module_from_source(
         "csv_to_tsv_h_mm_ss",
@@ -3794,6 +3798,8 @@ def main() -> int:
         help="Input Jobcan manhour CSV file paths",
     )
     objArgs: argparse.Namespace = objParser.parse_args()
+
+    convert_org_table_tsv(Path(__file__).resolve().parent)
 
     iExitCode: int = 0
     for pszInputManhourCsvPath in objArgs.pszInputManhourCsvPaths:
