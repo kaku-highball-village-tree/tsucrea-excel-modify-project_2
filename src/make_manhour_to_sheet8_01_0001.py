@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import os
 import re
 import tkinter as tk
@@ -3486,6 +3487,11 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         pszLineContent = re.sub(r"\t[0-9]+\t", "\t", pszLineContent)
         return pszLineContent
 
+    def normalize_org_table_project_code(pszProjectCode: str) -> str:
+        pszNormalized = normalize_project_name_sheet10(pszProjectCode)
+        pszNormalized = pszNormalized.replace(" ", "_").replace("　", "_")
+        return pszNormalized
+
     def parse_manhour_to_seconds_sheet11(pszManhour: str) -> int:
         objMatch = re.match(r"^(\d+):([0-5]\d):([0-5]\d)$", pszManhour)
         if not objMatch:
@@ -3508,6 +3514,26 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         if iUnderscoreIndex == -1:
             return pszProjectName
         return pszProjectName[:iUnderscoreIndex]
+
+    objOrgTableCsvPath: Path = Path(__file__).resolve().parent / "組織表.csv"
+    objOrgTableTsvPath: Path = objOrgTableCsvPath.with_suffix(".tsv")
+    if objOrgTableCsvPath.exists():
+        with open(objOrgTableCsvPath, "r", encoding="utf-8") as objOrgTableCsvFile:
+            objOrgTableReader = csv.reader(objOrgTableCsvFile)
+            with open(objOrgTableTsvPath, "w", encoding="utf-8") as objOrgTableTsvFile:
+                objOrgTableWriter = csv.writer(objOrgTableTsvFile, delimiter="\t", lineterminator="\n")
+                for objRow in objOrgTableReader:
+                    if len(objRow) >= 3:
+                        objRow[2] = normalize_org_table_project_code(objRow[2])
+                    objOrgTableWriter.writerow(objRow)
+    else:
+        pszOrgTableError = f"Error: 組織表.csv が見つかりません。Path = {objOrgTableCsvPath}"
+        print(pszOrgTableError)
+        write_debug_error(pszOrgTableError, objBaseDirectoryPath)
+        objRoot = tk.Tk()
+        objRoot.withdraw()
+        messagebox.showwarning("警告", pszOrgTableError)
+        objRoot.destroy()
 
     with open(pszSheet7TsvPath, "r", encoding="utf-8") as objSheet7File:
         objSheet7Lines: List[str] = objSheet7File.readlines()
