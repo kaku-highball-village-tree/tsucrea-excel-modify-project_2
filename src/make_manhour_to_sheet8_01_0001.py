@@ -176,7 +176,7 @@ def convert_org_table_tsv(objBaseDirectoryPath: Path) -> None:
                             )
                             if pszProjectCodePrefix and pszProjectNameTrimmed != pszProjectCodePrefix:
                                 if not re.match(r"^(P\d{5}|[A-OQ-Z]\d{3})_", pszProjectNameNormalized):
-                                    objRow[1] = f"{pszProjectCodePrefix}_{pszProjectNameRaw}"
+                                    objRow[1] = f"{pszProjectCodePrefix}_{pszProjectNameNormalized}"
                             objRow[1] = normalize_org_table_project_code(objRow[1])
                     while objRow and objRow[-1] == "":
                         objRow.pop()
