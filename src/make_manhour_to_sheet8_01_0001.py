@@ -163,10 +163,11 @@ def add_project_code_prefix_step0003(
     pszProjectCode: str,
 ) -> str:
     if pszProjectName == "":
-        return pszProjectName
-    if re.match(r"^[A-Za-z]", pszProjectName):
-        return pszProjectName
-    if "_" in pszProjectName:
+        return pszProjectCode
+    if re.match(r"^[A-Z]", pszProjectName) and re.match(
+        r"^(P\d{5}|[A-OQ-Z]\d{3})_",
+        pszProjectName,
+    ):
         return pszProjectName
     if pszProjectCode == "":
         return pszProjectName
@@ -213,10 +214,11 @@ def convert_org_table_tsv(objBaseDirectoryPath: Path) -> None:
                     lineterminator="\n",
                 )
                 for objRow in objStep0002Reader:
-                    if len(objRow) >= 3:
+                    if len(objRow) >= 2:
+                        pszProjectCode: str = objRow[2] if len(objRow) >= 3 else ""
                         objRow[1] = add_project_code_prefix_step0003(
                             objRow[1],
-                            objRow[2],
+                            pszProjectCode,
                         )
                     objOrgTableWriter.writerow(objRow)
     else:
