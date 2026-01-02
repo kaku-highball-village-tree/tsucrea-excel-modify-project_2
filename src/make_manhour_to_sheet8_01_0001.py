@@ -3601,6 +3601,42 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
             return pszProjectName
         return pszProjectName[:iUnderscoreIndex]
 
+    objOrgTableCsvPath: Path = Path(__file__).resolve().parent / "組織表.csv"
+    objOrgTableTsvPath: Path = objOrgTableCsvPath.with_suffix(".tsv")
+    if objOrgTableCsvPath.exists():
+        with open(objOrgTableCsvPath, "r", encoding="utf-8") as objOrgTableCsvFile:
+            objOrgTableReader = csv.reader(objOrgTableCsvFile)
+            with open(objOrgTableTsvPath, "w", encoding="utf-8") as objOrgTableTsvFile:
+                objOrgTableWriter = csv.writer(objOrgTableTsvFile, delimiter="\t", lineterminator="\n")
+                for objRow in objOrgTableReader:
+                    objRow = [objCell.replace("=match'", "") for objCell in objRow]
+                    while objRow and objRow[-1] == "":
+                        objRow.pop()
+                    if objRow and objRow[0] != "No":
+                        if len(objRow) >= 3:
+                            objRow[2] = normalize_org_table_project_code(objRow[2])
+                        if len(objRow) >= 2:
+                            pszProjectCodePrefix: str = ""
+                            if len(objRow) >= 3 and objRow[2]:
+                                pszProjectCodePrefix = objRow[2].split("_", 1)[0]
+                            pszProjectNameRaw: str = objRow[1]
+                            pszProjectNameTrimmed: str = pszProjectNameRaw.strip()
+                            if pszProjectCodePrefix and pszProjectNameTrimmed != pszProjectCodePrefix:
+                                if not pszProjectNameTrimmed.startswith(f"{pszProjectCodePrefix}_"):
+                                    objRow[1] = f"{pszProjectCodePrefix}_{pszProjectNameRaw}"
+                            objRow[1] = normalize_org_table_project_code(objRow[1])
+                    while objRow and objRow[-1] == "":
+                        objRow.pop()
+                    objOrgTableWriter.writerow(objRow)
+    else:
+        pszOrgTableError = f"Error: 組織表.csv が見つかりません。Path = {objOrgTableCsvPath}"
+        print(pszOrgTableError)
+        write_debug_error(pszOrgTableError, objBaseDirectoryPath)
+        objRoot = tk.Tk()
+        objRoot.withdraw()
+        messagebox.showwarning("警告", pszOrgTableError)
+        objRoot.destroy()
+
     with open(pszSheet7TsvPath, "r", encoding="utf-8") as objSheet7File:
         objSheet7Lines: List[str] = objSheet7File.readlines()
     with open(pszSheet10GroupTaskTsvPath, "r", encoding="utf-8") as objSheet10GroupFile:
