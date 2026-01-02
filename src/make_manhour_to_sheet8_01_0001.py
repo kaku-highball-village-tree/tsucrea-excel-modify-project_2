@@ -140,46 +140,84 @@ def preprocess_line_content_sheet10(pszLineContent: str) -> str:
     return pszLineContent
 
 
-def normalize_org_table_project_code(pszProjectCode: str) -> str:
-    pszNormalized = normalize_project_name_sheet10(pszProjectCode)
-    pszNormalized = pszNormalized.replace(" ", "_").replace("　", "_")
+def normalize_org_table_field_step0002(pszValue: str) -> str:
+    pszNormalized: str = pszValue.replace(" ", "_").replace("　", "_")
+    objMatchP: re.Match[str] | None = re.match(r"^(P\d{5})(.*)$", pszNormalized)
+    if objMatchP is not None:
+        pszCode: str = objMatchP.group(1)
+        pszRest: str = objMatchP.group(2)
+        if pszRest.startswith("【"):
+            pszNormalized = pszCode + "_" + pszRest
+    else:
+        objMatchOther: re.Match[str] | None = re.match(r"^([A-OQ-Z]\d{3})(.*)$", pszNormalized)
+        if objMatchOther is not None:
+            pszCodeOther: str = objMatchOther.group(1)
+            pszRestOther: str = objMatchOther.group(2)
+            if pszRestOther.startswith("【"):
+                pszNormalized = pszCodeOther + "_" + pszRestOther
     return pszNormalized
+
+
+def add_project_code_prefix_step0003(
+    pszProjectName: str,
+    pszProjectCode: str,
+) -> str:
+    if pszProjectName == "":
+        return pszProjectName
+    if re.match(r"^[A-Za-z]", pszProjectName):
+        return pszProjectName
+    if "_" in pszProjectName:
+        return pszProjectName
+    if pszProjectCode == "":
+        return pszProjectName
+    pszCodePrefix: str = pszProjectCode.split("_", 1)[0]
+    return pszCodePrefix + "_" + pszProjectName
 
 
 def convert_org_table_tsv(objBaseDirectoryPath: Path) -> None:
     objOrgTableCsvPath: Path = Path(__file__).resolve().parent / "組織表.csv"
+    objOrgTableStep0001Path: Path = objOrgTableCsvPath.with_name("組織表_step0001.tsv")
+    objOrgTableStep0002Path: Path = objOrgTableCsvPath.with_name("組織表_step0002.tsv")
     objOrgTableTsvPath: Path = objOrgTableCsvPath.with_suffix(".tsv")
     if objOrgTableCsvPath.exists():
         with open(objOrgTableCsvPath, "r", encoding="utf-8") as objOrgTableCsvFile:
             objOrgTableReader = csv.reader(objOrgTableCsvFile)
+            with open(objOrgTableStep0001Path, "w", encoding="utf-8") as objStep0001File:
+                objStep0001Writer = csv.writer(
+                    objStep0001File,
+                    delimiter="\t",
+                    lineterminator="\n",
+                )
+                for objRow in objOrgTableReader:
+                    objStep0001Writer.writerow(objRow)
+        with open(objOrgTableStep0001Path, "r", encoding="utf-8") as objStep0001File:
+            objStep0001Reader = csv.reader(objStep0001File, delimiter="\t")
+            with open(objOrgTableStep0002Path, "w", encoding="utf-8") as objStep0002File:
+                objStep0002Writer = csv.writer(
+                    objStep0002File,
+                    delimiter="\t",
+                    lineterminator="\n",
+                )
+                for objRow in objStep0001Reader:
+                    if len(objRow) >= 2:
+                        objRow[1] = normalize_org_table_field_step0002(objRow[1])
+                    if len(objRow) >= 3:
+                        objRow[2] = normalize_org_table_field_step0002(objRow[2])
+                    objStep0002Writer.writerow(objRow)
+        with open(objOrgTableStep0002Path, "r", encoding="utf-8") as objStep0002File:
+            objStep0002Reader = csv.reader(objStep0002File, delimiter="\t")
             with open(objOrgTableTsvPath, "w", encoding="utf-8") as objOrgTableTsvFile:
                 objOrgTableWriter = csv.writer(
                     objOrgTableTsvFile,
                     delimiter="\t",
                     lineterminator="\n",
                 )
-                for objRow in objOrgTableReader:
-                    objRow = [objCell.replace("=match'", "") for objCell in objRow]
-                    while objRow and objRow[-1] == "":
-                        objRow.pop()
-                    if objRow and objRow[0] != "No":
-                        if len(objRow) >= 3:
-                            objRow[2] = normalize_org_table_project_code(objRow[2])
-                            if len(objRow) >= 2:
-                                pszProjectCodePrefix: str = ""
-                                if len(objRow) >= 3 and objRow[2]:
-                                    pszProjectCodePrefix = objRow[2].split("_", 1)[0]
-                            pszProjectNameRaw: str = objRow[1]
-                            pszProjectNameTrimmed: str = pszProjectNameRaw.strip()
-                            pszProjectNameNormalized: str = normalize_org_table_project_code(
-                                pszProjectNameRaw,
-                            )
-                            if pszProjectCodePrefix and pszProjectNameTrimmed != pszProjectCodePrefix:
-                                if not re.match(r"^(P\d{5}|[A-OQ-Z]\d{3})_", pszProjectNameNormalized):
-                                    objRow[1] = f"{pszProjectCodePrefix}_{pszProjectNameNormalized}"
-                            objRow[1] = normalize_org_table_project_code(objRow[1])
-                    while objRow and objRow[-1] == "":
-                        objRow.pop()
+                for objRow in objStep0002Reader:
+                    if len(objRow) >= 3:
+                        objRow[1] = add_project_code_prefix_step0003(
+                            objRow[1],
+                            objRow[2],
+                        )
                     objOrgTableWriter.writerow(objRow)
     else:
         pszOrgTableError = f"Error: 組織表.csv が見つかりません。Path = {objOrgTableCsvPath}"
